@@ -53,8 +53,8 @@ dependencies {
 publishing {
     publications {
         register<MavenPublication>("release") {
-            groupId = "com.lza.android.inter.process"
-            artifactId = "inter-process-call-core"
+            groupId = "com.github.lza1047771038"
+            artifactId = "android-inter-process-call"
             version = "1.0.0"
 
             afterEvaluate {
