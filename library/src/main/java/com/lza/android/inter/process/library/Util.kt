@@ -2,6 +2,9 @@ package com.lza.android.inter.process.library
 
 import java.lang.reflect.Method
 import kotlin.coroutines.Continuation
+import kotlin.reflect.KCallable
+import kotlin.reflect.KFunction
+import kotlin.reflect.KProperty
 import kotlin.reflect.full.memberExtensionFunctions
 import kotlin.reflect.full.memberFunctions
 import kotlin.reflect.jvm.javaMethod
@@ -34,13 +37,18 @@ internal val String.stringTypeConvert: Class<*>
 internal val Class<*>.isKotlinClass: Boolean
     get() = this.getDeclaredAnnotation(Metadata::class.java) != null
 
-internal val Method.isSuspendFunction: Boolean
-    get() {
-        val kClass = this.declaringClass.kotlin
-        val kotlinFunction = kClass.memberFunctions.find { it.javaMethod == this }
-            ?: kClass.memberExtensionFunctions.find { it.javaMethod == this }
-        if (kotlinFunction != null) {
-            return kotlinFunction.isSuspend
-        }
-        return parameterTypes.find { it.javaClass == Continuation::class.java } != null
+internal fun KCallable<*>.match(method: Method): Boolean {
+    return when (this) {
+        is KProperty<*> -> this.matchProperty(method = method)
+        is KFunction<*> -> this.matchFunction(method = method)
+        else -> false
     }
+}
+
+internal fun KProperty<*>.matchProperty(method: Method): Boolean {
+    return this.getter.javaMethod == method
+}
+
+internal fun KFunction<*>.matchFunction(method: Method): Boolean {
+    return this.javaMethod == method
+}

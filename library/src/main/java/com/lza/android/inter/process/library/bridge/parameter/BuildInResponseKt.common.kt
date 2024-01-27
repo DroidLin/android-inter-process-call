@@ -15,7 +15,7 @@ internal class InvocationResponse(
 ) : Response, Parcelable {
 
     constructor(parcel: Parcel) : this(
-        responseObject = parcel.readValue(Any::class.java.classLoader),
+        responseObject = parcel.readValue(InvocationResponse::class.java.classLoader),
         throwable = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             parcel.readSerializable(InvocationRequest::class.java.classLoader, Throwable::class.java)
         } else {

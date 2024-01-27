@@ -19,6 +19,3 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
-
--keep class com.lza.android.inter.process.library.interfaces.IPCNoProguard
--keepclasseswithmembernames class * implements com.lza.android.inter.process.library.interfaces.IPCNoProguard {*;}

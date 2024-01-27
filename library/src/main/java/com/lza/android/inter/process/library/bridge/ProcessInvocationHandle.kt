@@ -4,6 +4,7 @@ import android.content.Context
 import com.lza.android.inter.process.library.ProcessConnectionCenter
 import com.lza.android.inter.process.library.bridge.parameter.InvocationResponse
 import com.lza.android.inter.process.library.interfaces.RemoteProcessCallInterface
+import com.lza.android.inter.process.library.match
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -18,18 +19,13 @@ import kotlin.coroutines.resumeWithException
 import kotlin.reflect.KCallable
 import kotlin.reflect.KFunction
 import kotlin.reflect.KProperty
-import kotlin.reflect.full.memberExtensionFunctions
-import kotlin.reflect.full.memberExtensionProperties
-import kotlin.reflect.full.memberFunctions
-import kotlin.reflect.full.memberProperties
-import kotlin.reflect.jvm.javaGetter
-import kotlin.reflect.jvm.javaMethod
-import kotlin.reflect.jvm.javaType
+import kotlin.reflect.javaType
 
 /**
  * @author liuzhongao
  * @since 2024/1/10 23:00
  */
+@OptIn(ExperimentalStdlibApi::class)
 class ProcessInvocationHandle(
     private val proxyInterfaceClass: Class<*>,
     private val currentProcessKey: String,
@@ -43,12 +39,10 @@ class ProcessInvocationHandle(
     override fun invoke(proxy: Any?, method: Method?, args: Array<Any?>?): Any? {
         requireNotNull(method) { "require method not null." }
 
-        val declaringClass = method.declaringClass
-        val kClass = declaringClass.kotlin
-        val kCallable = kClass.memberProperties.find { it.javaGetter == method }
-            ?: kClass.memberExtensionProperties.find { it.javaGetter == method }
-            ?: kClass.memberFunctions.find { it.javaMethod == method }
-            ?: kClass.memberExtensionFunctions.find { it.javaMethod == method }
+        val declaringClass = this.proxyInterfaceClass
+        val kClass = this.proxyInterfaceClass.kotlin
+
+        val kCallable = kClass.members.find { it.match(method = method) }
         return if (kCallable is KFunction<*> && kCallable.isSuspend) {
             this.invokeKotlinSuspendFunction(declaringClass, method, kCallable, (args ?: emptyArray()))
         } else if (kCallable is KFunction<*>) {

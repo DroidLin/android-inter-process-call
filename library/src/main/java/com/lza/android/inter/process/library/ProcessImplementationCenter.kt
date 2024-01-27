@@ -8,9 +8,9 @@ import java.util.concurrent.ConcurrentHashMap
  */
 internal object ProcessImplementationCenter {
 
-    private val implMap: MutableMap<Class<*>, Any> = ConcurrentHashMap()
+    private val implMap: MutableMap<Class<*>, Any?> = ConcurrentHashMap()
 
-    operator fun <T : Any> set(clazz: Class<T>, impl: T) {
+    operator fun <T : Any> set(clazz: Class<T>, impl: T?) {
         implMap[clazz] = impl
     }
 

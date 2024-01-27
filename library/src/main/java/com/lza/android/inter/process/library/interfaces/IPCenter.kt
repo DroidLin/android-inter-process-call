@@ -10,7 +10,7 @@ interface IPCenter {
 
     fun init(initConfig: ProcessCallInitConfig)
 
-    fun <T : IPCNoProguard> putService(clazz: Class<T>, impl: T)
+    fun <T : IPCNoProguard> putService(clazz: Class<T>, impl: T?)
 
     /**
      * @param defaultImpl 用于跨进程调用失败后当前进程的降级操作

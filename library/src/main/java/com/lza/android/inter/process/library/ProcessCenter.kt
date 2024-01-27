@@ -23,7 +23,7 @@ object ProcessCenter : IPCenter {
         ProcessConnectionCenter.processCallInitConfig = initConfig
     }
 
-    override fun <T : IPCNoProguard> putService(clazz: Class<T>, impl: T) {
+    override fun <T : IPCNoProguard> putService(clazz: Class<T>, impl: T?) {
         ProcessImplementationCenter[clazz] = impl
     }
 

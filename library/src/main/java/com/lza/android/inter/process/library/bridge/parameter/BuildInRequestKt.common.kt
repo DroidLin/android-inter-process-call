@@ -6,8 +6,8 @@ import android.os.Parcelable
 import com.lza.android.inter.process.library.ProcessCallFunction
 import com.lza.android.inter.process.library.interfaces.ProcessBasicInterface
 import com.lza.android.inter.process.library.interfaces.RemoteProcessSuspendCallback
-import com.lza.android.inter.process.library.interfaces.bridgeInterface
 import com.lza.android.inter.process.library.interfaces.binder
+import com.lza.android.inter.process.library.interfaces.bridgeInterface
 import com.lza.android.inter.process.library.interfaces.rpcInterface
 
 /**
@@ -29,34 +29,20 @@ internal class InvocationRequest(
         interfaceMethodName = parcel.readString() ?: "",
         interfaceParameterTypes = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ArrayList<String>().also { list ->
-                parcel.readList(
-                    list,
-                    InvocationRequest::class.java.classLoader,
-                    String::class.java
-                )
+                parcel.readList(list, InvocationRequest::class.java.classLoader, String::class.java)
             }
         } else {
             ArrayList<String>().also { list ->
-                parcel.readList(
-                    list,
-                    InvocationRequest::class.java.classLoader
-                )
+                parcel.readList(list, InvocationRequest::class.java.classLoader)
             }
         },
         interfaceParameters = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ArrayList<Any>().also { list ->
-                parcel.readList(
-                    list,
-                    InvocationRequest::class.java.classLoader,
-                    Any::class.java
-                )
+                parcel.readList(list, InvocationRequest::class.java.classLoader, Any::class.java)
             }
         } else {
             ArrayList<Any>().also { list ->
-                parcel.readList(
-                    list,
-                    InvocationRequest::class.java.classLoader
-                )
+                parcel.readList(list, InvocationRequest::class.java.classLoader)
             }
         },
         isSuspendFunction = parcel.readInt() == 1,
