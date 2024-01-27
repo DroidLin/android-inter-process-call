@@ -7,8 +7,8 @@ import com.lza.android.inter.process.library.ProcessCallFunction
 import com.lza.android.inter.process.library.interfaces.ProcessBasicInterface
 import com.lza.android.inter.process.library.interfaces.RemoteProcessSuspendCallback
 import com.lza.android.inter.process.library.interfaces.bridgeInterface
-import com.lza.android.library.interfaces.binder
-import com.lza.android.library.interfaces.rpcInterface
+import com.lza.android.inter.process.library.interfaces.binder
+import com.lza.android.inter.process.library.interfaces.rpcInterface
 
 /**
  * @author liuzhongao

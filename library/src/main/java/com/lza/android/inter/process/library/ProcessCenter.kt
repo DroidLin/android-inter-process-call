@@ -1,7 +1,7 @@
 package com.lza.android.inter.process.library
 
 import com.lza.android.inter.process.library.bridge.parameter.ProcessCallInitConfig
-import com.lza.android.library.bridge.ProcessInvocationHandle
+import com.lza.android.inter.process.library.bridge.ProcessInvocationHandle
 import com.lza.android.inter.process.library.interfaces.IPCNoProguard
 import com.lza.android.inter.process.library.interfaces.IPCenter
 import java.lang.ref.WeakReference

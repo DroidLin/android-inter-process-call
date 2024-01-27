@@ -2,7 +2,6 @@ package com.lza.android.inter.process.library.interfaces
 
 import com.lza.android.inter.process.library.bridge.interceptor.callbackBridgeInterceptor
 import com.lza.android.inter.process.library.bridge.parameter.CallbackRequest
-import com.lza.android.library.interfaces.RemoteProcessCallInterface
 
 /**
  * @author liuzhongao

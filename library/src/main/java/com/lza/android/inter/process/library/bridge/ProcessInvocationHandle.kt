@@ -1,9 +1,9 @@
-package com.lza.android.library.bridge
+package com.lza.android.inter.process.library.bridge
 
 import android.content.Context
 import com.lza.android.inter.process.library.ProcessConnectionCenter
 import com.lza.android.inter.process.library.bridge.parameter.InvocationResponse
-import com.lza.android.library.interfaces.RemoteProcessCallInterface
+import com.lza.android.inter.process.library.interfaces.RemoteProcessCallInterface
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

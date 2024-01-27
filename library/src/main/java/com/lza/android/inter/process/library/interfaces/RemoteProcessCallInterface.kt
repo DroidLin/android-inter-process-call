@@ -1,4 +1,4 @@
-package com.lza.android.library.interfaces
+package com.lza.android.inter.process.library.interfaces
 
 import android.os.IBinder
 import com.lza.android.inter.process.library.ProcessCallFunction

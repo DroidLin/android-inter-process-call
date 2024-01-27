@@ -7,7 +7,6 @@ import com.lza.android.inter.process.library.bridge.interceptor.suspendRemotePro
 import com.lza.android.inter.process.library.bridge.parameter.HandShakeRequest
 import com.lza.android.inter.process.library.bridge.parameter.InvocationRequest
 import com.lza.android.inter.process.library.bridge.parameter.SuspendInvocationRequest
-import com.lza.android.library.interfaces.RemoteProcessCallInterface
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
