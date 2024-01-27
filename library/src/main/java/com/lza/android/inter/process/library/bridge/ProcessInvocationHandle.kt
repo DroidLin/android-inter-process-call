@@ -24,6 +24,7 @@ import kotlin.reflect.full.memberFunctions
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.javaGetter
 import kotlin.reflect.jvm.javaMethod
+import kotlin.reflect.jvm.javaType
 
 /**
  * @author liuzhongao
@@ -92,6 +93,9 @@ class ProcessInvocationHandle(
         kotlinCallable: KCallable<Any?>,
         args: Array<Any?>,
     ): Any? {
+        if (kotlinCallable.returnType.javaType == Void::class.java || kotlinCallable.returnType.javaType == Unit::class.java) {
+            return null
+        }
         if (kotlinCallable.returnType.isMarkedNullable) {
             return null
         }
@@ -191,6 +195,10 @@ class ProcessInvocationHandle(
         args: Array<Any?>,
         continuation: Continuation<Any?>
     ) {
+        if (kotlinCallable.returnType.javaType == Void::class.java || kotlinCallable.returnType.javaType == Unit::class.java) {
+            continuation.resume(null)
+            return
+        }
         if (kotlinCallable.returnType.isMarkedNullable) {
             continuation.resume(null)
             return
