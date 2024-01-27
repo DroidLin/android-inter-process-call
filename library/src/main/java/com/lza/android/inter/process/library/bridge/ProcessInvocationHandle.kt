@@ -93,7 +93,7 @@ class ProcessInvocationHandle(
         kotlinCallable: KCallable<Any?>,
         args: Array<Any?>,
     ): Any? {
-        if (kotlinCallable.returnType.javaType == Void::class.java || kotlinCallable.returnType.javaType == Unit::class.java) {
+        if (kotlinCallable.returnType.javaType == Void::class.java || kotlinCallable.returnType.javaType == Void::class.javaPrimitiveType || kotlinCallable.returnType.javaType == Unit::class.java) {
             return null
         }
         if (kotlinCallable.returnType.isMarkedNullable) {
@@ -195,7 +195,7 @@ class ProcessInvocationHandle(
         args: Array<Any?>,
         continuation: Continuation<Any?>
     ) {
-        if (kotlinCallable.returnType.javaType == Void::class.java || kotlinCallable.returnType.javaType == Unit::class.java) {
+        if (kotlinCallable.returnType.javaType == Void::class.java || kotlinCallable.returnType.javaType == Void::class.javaPrimitiveType || kotlinCallable.returnType.javaType == Unit::class.java) {
             continuation.resume(null)
             return
         }
