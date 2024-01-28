@@ -6,9 +6,11 @@ import kotlin.coroutines.suspendCoroutine
 import kotlin.reflect.KCallable
 import kotlin.reflect.KFunction
 import kotlin.reflect.KProperty
+import kotlin.reflect.full.callSuspend
 import kotlin.reflect.full.memberExtensionFunctions
 import kotlin.reflect.full.memberFunctions
 import kotlin.reflect.jvm.javaMethod
+import kotlin.reflect.jvm.kotlinFunction
 
 
 /**
@@ -54,6 +56,6 @@ internal fun KFunction<*>.matchFunction(method: Method): Boolean {
     return this.javaMethod == method
 }
 
-internal suspend fun Method.invokeSuspend(instance: Any, vararg args: Any?): Any? = suspendCoroutine { continuation ->
-    this.invoke(instance, *args, continuation)
+internal suspend fun Method.invokeSuspend(instance: Any, vararg args: Any?): Any? {
+    return requireNotNull(this.kotlinFunction).callSuspend(instance, *args)
 }

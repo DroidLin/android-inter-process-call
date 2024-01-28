@@ -16,14 +16,28 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
-
+    signingConfigs {
+        create("release") {
+            keyAlias = "DoorPlayer"
+            keyPassword = "liuzhongao0325"
+            storeFile = File("${project.projectDir.absolutePath + File.separator}DoorPlayerKey.jks")
+            storePassword = "liuzhongao0325"
+            println(storeFile?.absolutePath)
+        }
+    }
     buildTypes {
         release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+        debug {
             isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            isShrinkResources = false
+            isZipAlignEnabled = false
+            signingConfig = signingConfigs.getByName("release")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
     compileOptions {
