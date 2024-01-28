@@ -25,9 +25,9 @@ class MainActivity : AppCompatActivity() {
         btnRemoteCall.setOnClickListener { v ->
             this.lifecycleScope.launch {
                 val startTimeStamp = SystemClock.elapsedRealtimeNanos()
-                val processService = ProcessCenter.getService(ProcessConst.KEY_LIBRARY_PROCESS, ProcessService::class.java)
-                val remoteResult = processService.suspendPostDataToRemote(arrayParameter = arrayOf(1,2,3,4,5,6,7).map { it.toString() }.toTypedArray())
-                Log.i("MainActivity", "remoteProcessName: ${remoteResult.joinToString()}")
+                val processService = ProcessCenter.getService(ProcessConst.KEY_LIBRARY_PROCESS, ProcessService::class.java, LibraryProcessServiceImpl)
+                val remoteResult = processService.suspendTestFunction("main", 122)
+                Log.i("MainActivity", "remoteProcessName: ${remoteResult}")
                 Log.i("MainActivity", "remote call cost: ${(SystemClock.elapsedRealtimeNanos() - startTimeStamp) / 1_000_000L}ms")
             }
         }

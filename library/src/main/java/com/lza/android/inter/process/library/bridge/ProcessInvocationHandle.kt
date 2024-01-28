@@ -5,6 +5,7 @@ import com.lza.android.inter.process.library.ProcessConnectionCenter
 import com.lza.android.inter.process.library.bridge.parameter.InvocationResponse
 import com.lza.android.inter.process.library.interfaces.RemoteProcessCallInterface
 import com.lza.android.inter.process.library.match
+import com.lza.android.inter.process.library.unSupportedReturnType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -61,20 +62,23 @@ class ProcessInvocationHandle(
         kotlinProperty: KProperty<Any?>,
         args: Array<Any?>
     ): Any? {
-        val connectResult = this.ensureBinderConnectionEstablished { requester ->
+        val tryConnectResult = this.ensureBinderConnectionEstablished { requester ->
             runBlocking(this.coroutineScope.coroutineContext) { requester() }
         }
-        // Todo: 日志收集
-        if (!connectResult) return this.dealSimpleFunctionOnConnectionFailureOrEmptyRpcInterface(method, kotlinProperty, args)
+        if (!tryConnectResult) {
+            return this.onNonSuspendFunctionFailure(method, kotlinProperty, args)
+        }
 
         val basicInterface = ProcessConnectionCenter[this@ProcessInvocationHandle.destinationProcessKey]
-        if (basicInterface == null || !basicInterface.isStillAlive) return this.dealSimpleFunctionOnConnectionFailureOrEmptyRpcInterface(method, kotlinProperty, args)
+        if (basicInterface == null || !basicInterface.isStillAlive) {
+            return this.onNonSuspendFunctionFailure(method, kotlinProperty, args)
+        }
         val response = basicInterface.invokeRemoteProcessMethod(declaringJvmClass, method, args) as? InvocationResponse
         if (response?.throwable != null) throw response.throwable
 
         return if (response?.responseObject != null) {
             response.responseObject
-        } else this.dealSimpleFunctionOnConnectionFailureOrEmptyRpcInterface(method, kotlinProperty, args)
+        } else this.onNonSuspendFunctionFailure(method, kotlinProperty, args)
     }
 
     /**
@@ -82,19 +86,19 @@ class ProcessInvocationHandle(
      *
      * 仅用于非挂起函数同步返回结果用！！！
      */
-    private fun dealSimpleFunctionOnConnectionFailureOrEmptyRpcInterface(
+    private fun onNonSuspendFunctionFailure(
         method: Method,
         kotlinCallable: KCallable<Any?>,
         args: Array<Any?>,
     ): Any? {
-        if (kotlinCallable.returnType.javaType == Void::class.java || kotlinCallable.returnType.javaType == Void::class.javaPrimitiveType || kotlinCallable.returnType.javaType == Unit::class.java) {
+        if (kotlinCallable.returnType.javaType == unSupportedReturnType) {
             return null
         }
         if (kotlinCallable.returnType.isMarkedNullable) {
             return null
         }
         if (this@ProcessInvocationHandle.interfaceDefaultImpl != null) {
-            // 不需要try-catch，若是该函数内部出现错误，那么直接对外抛出
+            // no need try/catch, export exceptions to outside caller.
             return method.invoke(this@ProcessInvocationHandle.interfaceDefaultImpl, args)
         }
         throw IllegalArgumentException(
@@ -113,19 +117,24 @@ class ProcessInvocationHandle(
         kotlinFunction: KFunction<Any?>,
         args: Array<Any?>
     ): Any? {
-        val connectResult = this.ensureBinderConnectionEstablished { requester ->
+        val tryConnectResult = this.ensureBinderConnectionEstablished { requester ->
             runBlocking(this.coroutineScope.coroutineContext) { requester() }
         }
-        // Todo: 日志收集
-        if (!connectResult) return this.dealSimpleFunctionOnConnectionFailureOrEmptyRpcInterface(method, kotlinFunction, args)
+        if (!tryConnectResult) {
+            return this.onNonSuspendFunctionFailure(
+                method = method,
+                kotlinCallable = kotlinFunction,
+                args = args
+            )
+        }
 
         val basicInterface = ProcessConnectionCenter[this@ProcessInvocationHandle.destinationProcessKey]
-        if (basicInterface == null || !basicInterface.isStillAlive) return this.dealSimpleFunctionOnConnectionFailureOrEmptyRpcInterface(method, kotlinFunction, args)
+        if (basicInterface == null || !basicInterface.isStillAlive) return this.onNonSuspendFunctionFailure(method, kotlinFunction, args)
         val response = basicInterface.invokeRemoteProcessMethod(declaringJvmClass, method, args) as? InvocationResponse
         if (response?.throwable != null) throw response.throwable
         return if (response?.responseObject != null) {
             response.responseObject
-        } else this.dealSimpleFunctionOnConnectionFailureOrEmptyRpcInterface(method, kotlinFunction, args)
+        } else this.onNonSuspendFunctionFailure(method, kotlinFunction, args)
     }
 
     /**
@@ -139,27 +148,28 @@ class ProcessInvocationHandle(
         kotlinFunction: KFunction<Any?>,
         args: Array<Any?>
     ): Any {
+        val invocationHandle = this
         this.coroutineScope.launch {
             val continuation = args.filterIsInstance<Continuation<*>>().firstOrNull() as? Continuation<Any?>
                 ?: throw IllegalArgumentException("no Continuation parameter find in argument!!")
-            val connectResult = this@ProcessInvocationHandle.ensureBinderConnectionEstablished { requester -> requester() }
-            // Todo: 日志收集
-            if (!connectResult) { // connect timeout.
-                this@ProcessInvocationHandle.dealSuspendFunctionOnConnectionFailureOrEmptyRpcInterface(method, kotlinFunction, args, continuation)
+            val tryConnectResult = invocationHandle.ensureBinderConnectionEstablished { requester -> requester() }
+            if (!tryConnectResult) {
+                invocationHandle.onSuspendFunctionFailure(method, kotlinFunction, args, continuation)
                 return@launch
             }
 
-            val basicInterface = ProcessConnectionCenter[this@ProcessInvocationHandle.destinationProcessKey]
+            val basicInterface = ProcessConnectionCenter[invocationHandle.destinationProcessKey]
             if (basicInterface == null || !basicInterface.isStillAlive) {
-                this@ProcessInvocationHandle.dealSuspendFunctionOnConnectionFailureOrEmptyRpcInterface(method, kotlinFunction, args, continuation)
+                invocationHandle.onSuspendFunctionFailure(method, kotlinFunction, args, continuation)
                 return@launch
             }
 
             val deathRecipient = object : RemoteProcessCallInterface.DeathRecipient {
                 override fun binderDead() {
                     basicInterface.unlinkToDeath(deathRecipient = this)
-                    // Todo: 日志收集
-                    this@ProcessInvocationHandle.dealSuspendFunctionOnConnectionFailureOrEmptyRpcInterface(method, kotlinFunction, args, continuation)
+                    invocationHandle.coroutineScope.launch {
+                        invocationHandle.onSuspendFunctionFailure(method, kotlinFunction, args, continuation)
+                    }
                     this@launch.cancel() // 清理当前还处于suspend状态的协程处理器，避免内存泄漏
                 }
             }
@@ -173,7 +183,7 @@ class ProcessInvocationHandle(
             }
             if (data != null) {
                 continuation.resume(data)
-            } else this@ProcessInvocationHandle.dealSuspendFunctionOnConnectionFailureOrEmptyRpcInterface(method, kotlinFunction, args, continuation)
+            } else invocationHandle.onSuspendFunctionFailure(method, kotlinFunction, args, continuation)
         }
         return kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
     }
@@ -183,13 +193,13 @@ class ProcessInvocationHandle(
      *
      * 仅用于协程挂起函数异步返回结果用！！！
      */
-    private fun dealSuspendFunctionOnConnectionFailureOrEmptyRpcInterface(
+    private fun onSuspendFunctionFailure(
         method: Method,
         kotlinCallable: KCallable<Any?>,
         args: Array<Any?>,
         continuation: Continuation<Any?>
     ) {
-        if (kotlinCallable.returnType.javaType == Void::class.java || kotlinCallable.returnType.javaType == Void::class.javaPrimitiveType || kotlinCallable.returnType.javaType == Unit::class.java) {
+        if (kotlinCallable.returnType.javaType in unSupportedReturnType) {
             continuation.resume(null)
             return
         }
@@ -197,9 +207,9 @@ class ProcessInvocationHandle(
             continuation.resume(null)
             return
         }
-        if (this@ProcessInvocationHandle.interfaceDefaultImpl != null) {
+        if (this.interfaceDefaultImpl != null) {
             // 不需要try-catch，若是该函数内部出现错误，那么直接对外抛出
-            kotlin.runCatching { method.invoke(this@ProcessInvocationHandle.interfaceDefaultImpl, args) }
+            kotlin.runCatching { method.invoke(this.interfaceDefaultImpl, *args) }
                 .onSuccess { continuation.resume(it) }
                 .onFailure { continuation.resumeWithException(it) }
             return

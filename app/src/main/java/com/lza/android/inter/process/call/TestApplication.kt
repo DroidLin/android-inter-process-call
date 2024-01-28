@@ -21,8 +21,8 @@ class TestApplication : Application() {
 
     private val connectionAdapter = object : ProcessConnectionAdapter {
         override fun onAttachToRemote(context: Context, bundle: ProcessRequestBundle) {
-            val intent = broadcastConnectionIntent(context = context, requestBundle = bundle)
-            context.sendBroadcast(intent)
+//            val intent = broadcastConnectionIntent(context = context, requestBundle = bundle)
+//            context.sendBroadcast(intent)
         }
     }
 

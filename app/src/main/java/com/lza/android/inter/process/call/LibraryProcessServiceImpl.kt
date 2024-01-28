@@ -17,11 +17,12 @@ object LibraryProcessServiceImpl : ProcessService {
     }
 
     override suspend fun suspendTestFunction(path: String, parameters: Int): String {
-        return "${TestApplication.application.getCurrentProcessName()}/${path}/$parameters"
+        val result = suspendPostDataToRemote(arrayParameter = arrayOf("2", "3"))
+        return "${TestApplication.application.getCurrentProcessName()}/${path}/$parameters, result = ${result.joinToString()}"
     }
 
     override suspend fun suspendPostDataToRemote(arrayParameter: Array<String>): Array<Int> {
-        return arrayParameter.map { it.toIntOrNull() ?: 0 }.toTypedArray()
+        return (arrayParameter).map { it.toIntOrNull() ?: 0 }.toTypedArray()
     }
 
     override suspend fun String.calculateStringCount(): Int {
