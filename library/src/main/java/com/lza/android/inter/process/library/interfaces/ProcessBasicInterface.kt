@@ -7,6 +7,7 @@ import com.lza.android.inter.process.library.bridge.interceptor.suspendRemotePro
 import com.lza.android.inter.process.library.bridge.parameter.HandShakeRequest
 import com.lza.android.inter.process.library.bridge.parameter.InvocationRequest
 import com.lza.android.inter.process.library.bridge.parameter.SuspendInvocationRequest
+import com.lza.android.inter.process.library.invokeSuspend
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -79,7 +80,7 @@ internal sealed interface ProcessBasicInterface {
                 this.invokeRemoteProcessMethod(declaringClass = clazz, method = method, args = args)
             }
             this.bridgeInterface += suspendRemoteProcessCallInterceptor { clazz, method, args ->
-                this.invokeRemoteProcessMethod(declaringClass = clazz, method = method, args = args)
+                this.invokeSuspendRemoteProcessMethod(declaringClass = clazz, method = method, args = args)
             }
         }
 
@@ -88,6 +89,12 @@ internal sealed interface ProcessBasicInterface {
             method: Method,
             args: Array<Any?>
         ): Any? = method.invoke(ProcessImplementationCenter[declaringClass], *args)
+
+        override suspend fun invokeSuspendRemoteProcessMethod(
+            declaringClass: Class<*>,
+            method: Method,
+            args: Array<Any?>
+        ): Any? = method.invokeSuspend(ProcessImplementationCenter[declaringClass], *args)
     }
 
     class Proxy(val remoteBridgeInterface: RemoteProcessCallInterface) : ProcessBasicInterface {

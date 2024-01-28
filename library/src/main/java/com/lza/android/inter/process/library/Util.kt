@@ -2,6 +2,7 @@ package com.lza.android.inter.process.library
 
 import java.lang.reflect.Method
 import kotlin.coroutines.Continuation
+import kotlin.coroutines.suspendCoroutine
 import kotlin.reflect.KCallable
 import kotlin.reflect.KFunction
 import kotlin.reflect.KProperty
@@ -51,4 +52,8 @@ internal fun KProperty<*>.matchProperty(method: Method): Boolean {
 
 internal fun KFunction<*>.matchFunction(method: Method): Boolean {
     return this.javaMethod == method
+}
+
+internal suspend fun Method.invokeSuspend(instance: Any, vararg args: Any?): Any? = suspendCoroutine { continuation ->
+    this.invoke(instance, *args, continuation)
 }
