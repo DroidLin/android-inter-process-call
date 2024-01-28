@@ -2,22 +2,14 @@ package com.lza.android.inter.process.library.bridge.interceptor
 
 import com.lza.android.inter.process.library.bridge.parameter.Request
 import com.lza.android.inter.process.library.bridge.parameter.SuspendInvocationRequest
-import com.lza.android.inter.process.library.stringTypeConvert
 import com.lza.android.inter.process.library.interfaces.RemoteProcessSuspendCallback
-import com.lza.android.inter.process.library.invokeSuspend
+import com.lza.android.inter.process.library.stringTypeConvert
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
 import java.lang.reflect.Method
 import kotlin.coroutines.Continuation
-import kotlin.coroutines.CoroutineContext
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
-import kotlin.reflect.KFunction
-import kotlin.reflect.full.callSuspend
 
 /**
  * 非阻塞式kotlin挂起函数远端被调用端实现
@@ -45,7 +37,7 @@ internal class SuspendRemoteProcessCallBridgeInterceptor(
             methodName = request.interfaceMethodName,
             parameterTypes = parameterClassTypes,
             parameterValues = request.interfaceParameters,
-            remoteProcessSuspendCallback = request.remoteProcessSuspendCallback
+            suspendCallback = request.remoteProcessSuspendCallback
         )
     }
 
@@ -54,8 +46,9 @@ internal class SuspendRemoteProcessCallBridgeInterceptor(
         methodName: String,
         parameterTypes: List<Class<*>>,
         parameterValues: List<Any?>,
-        remoteProcessSuspendCallback: RemoteProcessSuspendCallback
+        suspendCallback: RemoteProcessSuspendCallback
     ): Any? {
+        val functionInvocation = this.block
         this.coroutineScope.launch {
             // suspend functions need Continuation instance to be the last parameter in parameter array.
             val parameterTypesWithContinuation = parameterTypes + Continuation::class.java
@@ -64,10 +57,10 @@ internal class SuspendRemoteProcessCallBridgeInterceptor(
                 *(parameterTypesWithContinuation.toTypedArray())
             )
             kotlin.runCatching {
-                this@SuspendRemoteProcessCallBridgeInterceptor.block.invoke(declaringJvmClass, method, parameterValues.toTypedArray())
+                functionInvocation.invoke(declaringJvmClass, method, parameterValues.toTypedArray())
             }
-                .onSuccess { data -> remoteProcessSuspendCallback.callbackSuspend(data, null) }
-                .onFailure { throwable -> remoteProcessSuspendCallback.callbackSuspend(null, throwable) }
+                .onSuccess { data -> suspendCallback.callbackSuspend(data, null) }
+                .onFailure { throwable -> suspendCallback.callbackSuspend(null, throwable) }
                 .onFailure { it.printStackTrace() }
         }
         return null

@@ -17,6 +17,12 @@ import kotlin.reflect.jvm.kotlinFunction
  * @author liuzhongao
  * @since 2024/1/14 21:47
  */
+internal val unSupportedReturnType: List<Class<*>> = listOfNotNull(
+    Void::class.java,
+    Void::class.javaPrimitiveType,
+    Unit::class.java,
+    Unit::class.javaPrimitiveType
+)
 
 internal val Array<String>.stringTypeConvert: Array<Class<*>>
     get() = this.map { className -> className.stringTypeConvert }.toTypedArray()
@@ -58,4 +64,12 @@ internal fun KFunction<*>.matchFunction(method: Method): Boolean {
 
 internal suspend fun Method.invokeSuspend(instance: Any, vararg args: Any?): Any? {
     return requireNotNull(this.kotlinFunction).callSuspend(instance, *args)
+}
+
+internal fun Any?.safeUnbox(): Any? {
+    this ?: return null
+    if (this.javaClass in unSupportedReturnType) {
+        return null
+    }
+    return this
 }
