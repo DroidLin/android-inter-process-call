@@ -10,6 +10,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import java.lang.reflect.Method
 import kotlin.coroutines.Continuation
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 
 /**
  * 非阻塞式kotlin挂起函数远端被调用端实现
@@ -17,7 +19,7 @@ import kotlin.coroutines.Continuation
  * @author liuzhongao
  * @since 2024/1/17 10:31
  */
-internal fun suspendRemoteProcessCallInterceptor(block: suspend (Class<*>, method: Method, args: Array<Any?>) -> Any?): BridgeInterceptor<Request> {
+internal fun suspendRemoteProcessCallInterceptor(block: suspend (Class<*>, Method, Array<Any?>) -> Any?): BridgeInterceptor<Request> {
     return SuspendRemoteProcessCallBridgeInterceptor(block = block) as BridgeInterceptor<Request>
 }
 
@@ -47,22 +49,21 @@ internal class SuspendRemoteProcessCallBridgeInterceptor(
         parameterTypes: List<Class<*>>,
         parameterValues: List<Any?>,
         suspendCallback: RemoteProcessSuspendCallback
-    ): Any? {
-        val functionInvocation = this.block
-        this.coroutineScope.launch {
-            // suspend functions need Continuation instance to be the last parameter in parameter array.
-            val parameterTypesWithContinuation = parameterTypes + Continuation::class.java
-            val method = declaringJvmClass.getDeclaredMethod(
-                methodName,
-                *(parameterTypesWithContinuation.toTypedArray())
-            )
-            kotlin.runCatching {
-                functionInvocation.invoke(declaringJvmClass, method, parameterValues.toTypedArray())
-            }
-                .onSuccess { data -> suspendCallback.callbackSuspend(data, null) }
-                .onFailure { throwable -> suspendCallback.callbackSuspend(null, throwable) }
-                .onFailure { it.printStackTrace() }
+    ): Any {
+        val continuation = object : Continuation<Any?> {
+            override val context: CoroutineContext get() = this@SuspendRemoteProcessCallBridgeInterceptor.coroutineScope.coroutineContext
+            override fun resumeWith(result: Result<Any?>) = suspendCallback.callbackSuspend(data = result.getOrNull(), throwable = result.exceptionOrNull())
         }
-        return null
+        val functionInvocation = this.block.javaClass.getDeclaredMethod("invoke", Class::class.java, Method::class.java, Array::class.java, Continuation::class.java)
+        // suspend functions need Continuation instance to be the last parameter in parameter array.
+        val parameterTypesWithContinuation = parameterTypes + Continuation::class.java
+        val method = declaringJvmClass.getDeclaredMethod(methodName, *(parameterTypesWithContinuation.toTypedArray()))
+        return kotlin.runCatching {
+            functionInvocation.invoke(this.block, declaringJvmClass, method, parameterValues.toTypedArray(), continuation)
+        }
+            .onSuccess { data -> if (data != COROUTINE_SUSPENDED) suspendCallback.callbackSuspend(data, null) }
+            .onFailure { throwable -> suspendCallback.callbackSuspend(null, throwable) }
+            .onFailure { it.printStackTrace() }
+            .getOrNull() to null
     }
 }

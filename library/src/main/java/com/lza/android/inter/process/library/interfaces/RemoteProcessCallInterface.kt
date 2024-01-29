@@ -88,7 +88,7 @@ sealed interface RemoteProcessCallInterface {
             bridgeParameter.request = request
             // Todo: 日志收集
             kotlin.runCatching { this.binderInterface.invoke(bridgeParameter) }
-                .onFailure { it.printStackTrace() }
+                .onFailure { it.printStackTrace(); bridgeParameter.response = InvocationResponse(null, it) }
             return bridgeParameter.response
         }
 

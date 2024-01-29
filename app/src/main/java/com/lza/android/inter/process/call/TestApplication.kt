@@ -21,8 +21,8 @@ class TestApplication : Application() {
 
     private val connectionAdapter = object : ProcessConnectionAdapter {
         override fun onAttachToRemote(context: Context, bundle: ProcessRequestBundle) {
-//            val intent = broadcastConnectionIntent(context = context, requestBundle = bundle)
-//            context.sendBroadcast(intent)
+            val intent = broadcastConnectionIntent(context = context, requestBundle = bundle)
+            context.sendBroadcast(intent)
         }
     }
 
@@ -43,6 +43,8 @@ class TestApplication : Application() {
             .setProcessIdentifier(identifier = this.processIdentifier)
             .setConnectionAdapter(connectionAdapter = this.connectionAdapter)
             .build()
+
+    val isMainProcess: Boolean get() = !this.currentProcessName.contains(":")
 
     override fun attachBaseContext(base: Context?) {
         super.attachBaseContext(base)
@@ -71,10 +73,10 @@ class TestApplication : Application() {
 
     companion object {
         @JvmStatic
-        private var applicationReference: WeakReference<Application>? = null
+        private var applicationReference: WeakReference<TestApplication>? = null
 
         @JvmStatic
-        val application: Application get() = requireNotNull(applicationReference?.get())
+        val application: TestApplication get() = requireNotNull(applicationReference?.get())
     }
 }
 

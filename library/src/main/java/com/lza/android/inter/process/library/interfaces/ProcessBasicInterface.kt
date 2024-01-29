@@ -1,18 +1,19 @@
 package com.lza.android.inter.process.library.interfaces
 
+import android.os.DeadObjectException
 import com.lza.android.inter.process.library.ProcessImplementationCenter
 import com.lza.android.inter.process.library.bridge.interceptor.handShakeBridgeInterceptor
 import com.lza.android.inter.process.library.bridge.interceptor.remoteProcessCallInterceptor
 import com.lza.android.inter.process.library.bridge.interceptor.suspendRemoteProcessCallInterceptor
 import com.lza.android.inter.process.library.bridge.parameter.HandShakeRequest
 import com.lza.android.inter.process.library.bridge.parameter.InvocationRequest
+import com.lza.android.inter.process.library.bridge.parameter.InvocationResponse
 import com.lza.android.inter.process.library.bridge.parameter.SuspendInvocationRequest
 import com.lza.android.inter.process.library.invokeSuspend
 import com.lza.android.inter.process.library.safeUnbox
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.lang.reflect.Method
 import kotlin.coroutines.Continuation
@@ -100,9 +101,15 @@ internal sealed interface ProcessBasicInterface {
 
     class Proxy(val remoteBridgeInterface: RemoteProcessCallInterface) : ProcessBasicInterface {
 
-        private val coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
-
         override val isStillAlive: Boolean get() = this.remoteBridgeInterface.isStillAlive
+
+        override fun linkToDeath(deathRecipient: RemoteProcessCallInterface.DeathRecipient) {
+            this.remoteBridgeInterface.linkToDeath(deathRecipient)
+        }
+
+        override fun unlinkToDeath(deathRecipient: RemoteProcessCallInterface.DeathRecipient) {
+            this.remoteBridgeInterface.unlinkToDeath(deathRecipient)
+        }
 
         override fun onReceiveBinder(processKey: String, basicInterface: ProcessBasicInterface) {
             this.remoteBridgeInterface.invoke(request = HandShakeRequest(processKey, basicInterface))
@@ -137,13 +144,11 @@ internal sealed interface ProcessBasicInterface {
                             // we should never use continuation ever again.
                             return
                         }
-                        this@Proxy.coroutineScope.launch internalLaunch@{
-                            if (throwable != null) {
-                                cancellableContinuation.resume(null to throwable)
-                                return@internalLaunch
-                            }
-                            cancellableContinuation.resume(data to null)
+                        if (throwable != null) {
+                            cancellableContinuation.resume(null to throwable)
+                            return
                         }
+                        cancellableContinuation.resume(data to null)
                     }
                 }
                 val parameterTypeExcludeContinuation = method.parameterTypes.filter { it != Continuation::class.java }.map { it.name }
