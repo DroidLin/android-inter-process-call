@@ -53,7 +53,7 @@ dependencies {
 publishing {
     publications {
         register<MavenPublication>("release") {
-            groupId = "com.github.lza1047771038"
+            groupId = "com.github.DroidLin"
             artifactId = "android-inter-process-call"
             version = "1.0.0"
 
