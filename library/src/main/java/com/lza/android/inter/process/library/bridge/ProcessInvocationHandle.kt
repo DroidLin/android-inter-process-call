@@ -7,13 +7,12 @@ import com.lza.android.inter.process.library.interfaces.IPCNoProguard
 import com.lza.android.inter.process.library.interfaces.ProcessBasicInterface
 import com.lza.android.inter.process.library.match
 import com.lza.android.inter.process.library.unSupportedReturnType
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
 import kotlin.coroutines.Continuation
+import kotlin.coroutines.CoroutineContext
 import kotlin.reflect.KCallable
 import kotlin.reflect.KFunction
 import kotlin.reflect.KProperty
@@ -30,11 +29,10 @@ class ProcessInvocationHandle(
     private val proxyInterfaceClass: Class<*>,
     private val currentProcessKey: String,
     private val destinationProcessKey: String,
+    private val coroutineContext: CoroutineContext = Dispatchers.Default,
     private val interfaceDefaultImpl: Any? = null,
     private val contextGetter: () -> Context? = { null },
 ) : InvocationHandler, IPCNoProguard {
-
-    private val coroutineScope = CoroutineScope(context = Dispatchers.Default + SupervisorJob())
 
     override fun invoke(proxy: Any?, method: Method?, args: Array<Any?>?): Any? {
         requireNotNull(method) { "require method not null." }
@@ -44,12 +42,12 @@ class ProcessInvocationHandle(
 
         // remains potential performance problems.
         val kCallable = kClass.members.find { it.match(method = method) }
-        return if (kCallable is KFunction<*> && kCallable.isSuspend) {
+        return if (kCallable is KFunction && kCallable.isSuspend) {
             this.invokeKotlinSuspendFunction(declaringClass, method, kCallable, (args ?: emptyArray()))
-        } else if (kCallable is KFunction<*>) {
+        } else if (kCallable is KFunction) {
             this.invokeKotlinSimpleFunction(declaringClass, method, kCallable, (args ?: emptyArray()))
-        } else if (kClass is KProperty<*>) {
-            this.invokeKotlinProperty(declaringClass, method, kClass, (args ?: emptyArray()))
+        } else if (kCallable is KProperty) {
+            this.invokeKotlinProperty(declaringClass, method, kCallable, (args ?: emptyArray()))
         } else throw IllegalArgumentException("can not find kotlin function represent target method: $method")
     }
 
@@ -62,7 +60,7 @@ class ProcessInvocationHandle(
         kotlinProperty: KProperty<Any?>,
         args: Array<Any?>
     ): Any? {
-        val tryConnectResult = runBlocking(this.coroutineScope.coroutineContext) {
+        val tryConnectResult = runBlocking(this.coroutineContext) {
             this@ProcessInvocationHandle.ensureBinderConnectionEstablished()
         }
         if (!tryConnectResult) {
@@ -117,7 +115,7 @@ class ProcessInvocationHandle(
         kotlinFunction: KFunction<Any?>,
         args: Array<Any?>
     ): Any? {
-        val tryConnectResult = runBlocking(this.coroutineScope.coroutineContext) {
+        val tryConnectResult = runBlocking(this.coroutineContext) {
             this@ProcessInvocationHandle.ensureBinderConnectionEstablished()
         }
         if (!tryConnectResult) {
@@ -151,10 +149,9 @@ class ProcessInvocationHandle(
         val continuation = args.filterIsInstance<Continuation<*>>().firstOrNull() as? Continuation<Any?>
             ?: throw IllegalArgumentException("no Continuation parameter find in argument!!")
         val parameterWithoutContinuation = args.filter { it !is Continuation<*> }.toTypedArray()
-        val continuationProxy = ProcessBasicInterface.OneShotContinuation(continuation, coroutineScope.coroutineContext)
+        val continuationProxy = ProcessBasicInterface.OneShotContinuation(continuation, this.coroutineContext)
         return this::suspendInvokeKotlinFunction
             .apply { isAccessible = true }
-            .let { it as KCallable<*> }
             .call(declaringJvmClass, method, kotlinFunction, parameterWithoutContinuation, continuationProxy)
     }
 

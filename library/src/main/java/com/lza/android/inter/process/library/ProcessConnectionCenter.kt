@@ -7,11 +7,9 @@ import com.lza.android.inter.process.library.bridge.parameter.ProcessCallInitCon
 import com.lza.android.inter.process.library.bridge.parameter.ProcessRequestBundle
 import com.lza.android.inter.process.library.interfaces.ProcessBasicInterface
 import kotlinx.coroutines.CancellableContinuation
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -27,10 +25,6 @@ internal object ProcessConnectionCenter {
 
     private val iBinderMap = ConcurrentHashMap<String, ProcessBasicInterface>()
     private val pendingConnectRequestMap = ConcurrentHashMap<String, Deferred<Boolean>>()
-
-    private val coroutineScope = CoroutineScope(context = Dispatchers.Default + SupervisorJob())
-
-    private var initConfig: ProcessCallInitConfig? = null
 
     internal lateinit var processCallInitConfig: ProcessCallInitConfig
 
@@ -64,60 +58,62 @@ internal object ProcessConnectionCenter {
             return previousAsyncConnectionTask.await()
         }
 
-        val asyncConnectionTask: Deferred<Boolean> = coroutineScope.async {
-            suspendCancellableCoroutine { cancellableContinuation ->
-                if (!this@ProcessConnectionCenter::processCallInitConfig.isInitialized) {
-                    cancellableContinuation.resumeWithException(NullPointerException("call ProcessCenter#init before trying to connect to remote."))
-                    return@suspendCancellableCoroutine
-                }
-                fun <T> CancellableContinuation<T>.resumeOrElse(
-                    result: Result<T>,
-                    block: () -> Unit = {}
-                ) {
-                    if (!this.isCancelled && !this.isCompleted) {
-                        resumeWith(result = result)
-                    } else block()
-                }
-
-                val timeoutJob = launch {
-                    delay(10_000L)
-                    pendingConnectRequestMap.remove(destKey)
-                    cancellableContinuation.resumeOrElse(result = Result.success(value = false)) {
-                        // Todo: 补充连接超时返回监控日志
+        return coroutineScope {
+            val asyncConnectionTask: Deferred<Boolean> = async {
+                suspendCancellableCoroutine { cancellableContinuation ->
+                    if (!this@ProcessConnectionCenter::processCallInitConfig.isInitialized) {
+                        cancellableContinuation.resumeWithException(NullPointerException("call ProcessCenter#init before trying to connect to remote."))
+                        return@suspendCancellableCoroutine
                     }
-                }
-                val basicInterface = object : ProcessBasicInterface.Stub() {
-
-                    override fun onReceiveBinder(
-                        processKey: String,
-                        basicInterface: ProcessBasicInterface
+                    fun <T> CancellableContinuation<T>.resumeOrElse(
+                        result: Result<T>,
+                        block: () -> Unit = {}
                     ) {
-                        timeoutJob.cancel()
-                        binderEstablished(
-                            processKey = processKey,
-                            basicInterface = basicInterface
-                        )
-                        pendingConnectRequestMap.remove(processKey)
-                        cancellableContinuation.resumeOrElse(result = Result.success(value = true)) {
+                        if (!this.isCancelled && !this.isCompleted) {
+                            resumeWith(result = result)
+                        } else block()
+                    }
+
+                    val timeoutJob = launch {
+                        delay(10_000L)
+                        this@ProcessConnectionCenter.pendingConnectRequestMap.remove(destKey)
+                        cancellableContinuation.resumeOrElse(result = Result.success(value = false)) {
                             // Todo: 补充连接超时返回监控日志
                         }
                     }
-                }
-                val connectionAdapter = processCallInitConfig.connectionAdapter
-                val requestBundle = ProcessRequestBundle(
-                    basicInterface = basicInterface,
-                    connectionContext = ConnectionContext(selfKey = selfKey, destKey = destKey)
-                )
-                kotlin.runCatching {
-                    connectionAdapter.onAttachToRemote(
-                        context = context,
-                        bundle = requestBundle
+                    val basicInterface = object : ProcessBasicInterface.Stub() {
+
+                        override fun onReceiveBinder(
+                            processKey: String,
+                            basicInterface: ProcessBasicInterface
+                        ) {
+                            timeoutJob.cancel()
+                            binderEstablished(
+                                processKey = processKey,
+                                basicInterface = basicInterface
+                            )
+                            pendingConnectRequestMap.remove(processKey)
+                            cancellableContinuation.resumeOrElse(result = Result.success(value = true)) {
+                                // Todo: 补充连接超时返回监控日志
+                            }
+                        }
+                    }
+                    val connectionAdapter = processCallInitConfig.connectionAdapter
+                    val requestBundle = ProcessRequestBundle(
+                        basicInterface = basicInterface,
+                        connectionContext = ConnectionContext(selfKey = selfKey, destKey = destKey)
                     )
-                }.onFailure { cancellableContinuation.resumeOrElse(Result.failure(exception = it)) { /*Todo: 补充连接超时返回监控日志*/ } }
+                    kotlin.runCatching {
+                        connectionAdapter.onAttachToRemote(
+                            context = context,
+                            bundle = requestBundle
+                        )
+                    }.onFailure { cancellableContinuation.resumeOrElse(Result.failure(exception = it)) { /*Todo: 补充连接超时返回监控日志*/ } }
+                }
             }
+            this@ProcessConnectionCenter.pendingConnectRequestMap[destKey] = asyncConnectionTask
+            asyncConnectionTask.await()
         }
-        pendingConnectRequestMap[destKey] = asyncConnectionTask
-        return asyncConnectionTask.await()
     }
 
     /**

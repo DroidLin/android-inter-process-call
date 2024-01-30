@@ -4,9 +4,7 @@ import com.lza.android.inter.process.library.bridge.parameter.Request
 import com.lza.android.inter.process.library.bridge.parameter.SuspendInvocationRequest
 import com.lza.android.inter.process.library.interfaces.RemoteProcessSuspendCallback
 import com.lza.android.inter.process.library.stringTypeConvert
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import java.lang.reflect.Method
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.CoroutineContext
@@ -22,10 +20,9 @@ internal fun suspendRemoteProcessCallInterceptor(block: suspend (Class<*>, Metho
 }
 
 internal class SuspendRemoteProcessCallBridgeInterceptor(
+    private val coroutineContext: CoroutineContext = Dispatchers.Default,
     private val block: suspend (Class<*>, method: Method, args: Array<Any?>) -> Any?
 ) : BridgeInterceptor<SuspendInvocationRequest> {
-
-    private val coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     override fun shouldHandle(request: Request): Boolean = request is SuspendInvocationRequest
 
@@ -49,7 +46,7 @@ internal class SuspendRemoteProcessCallBridgeInterceptor(
         suspendCallback: RemoteProcessSuspendCallback
     ): Any? {
         val continuation = object : Continuation<Any?> {
-            override val context: CoroutineContext get() = this@SuspendRemoteProcessCallBridgeInterceptor.coroutineScope.coroutineContext
+            override val context: CoroutineContext get() = this@SuspendRemoteProcessCallBridgeInterceptor.coroutineContext
             override fun resumeWith(result: Result<Any?>) = suspendCallback.callbackSuspend(data = result.getOrNull(), throwable = result.exceptionOrNull())
         }
         val functionInvocation = this.block.javaClass.getDeclaredMethod("invoke", Class::class.java, Method::class.java, Array::class.java, Continuation::class.java)

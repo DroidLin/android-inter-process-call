@@ -26,7 +26,7 @@ class MainActivity : AppCompatActivity() {
             this.lifecycleScope.launch {
                 val startTimeStamp = SystemClock.elapsedRealtimeNanos()
                 val processService = ProcessCenter.getService(ProcessConst.KEY_LIBRARY_PROCESS, ProcessService::class.java, LibraryProcessServiceImpl)
-                val remoteResult = processService.suspendTestFunction("main", 122)
+                val remoteResult = processService.processName
                 Log.i("MainActivity", "remoteProcessName: ${remoteResult}")
                 Log.i("MainActivity", "remote call cost: ${(SystemClock.elapsedRealtimeNanos() - startTimeStamp) / 1_000_000L}ms")
             }
