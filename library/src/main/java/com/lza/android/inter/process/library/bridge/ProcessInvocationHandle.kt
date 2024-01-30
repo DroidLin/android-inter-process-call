@@ -3,6 +3,7 @@ package com.lza.android.inter.process.library.bridge
 import android.content.Context
 import com.lza.android.inter.process.library.ProcessConnectionCenter
 import com.lza.android.inter.process.library.bridge.parameter.InvocationResponse
+import com.lza.android.inter.process.library.interfaces.IPCNoProguard
 import com.lza.android.inter.process.library.interfaces.ProcessBasicInterface
 import com.lza.android.inter.process.library.match
 import com.lza.android.inter.process.library.unSupportedReturnType
@@ -31,7 +32,7 @@ class ProcessInvocationHandle(
     private val destinationProcessKey: String,
     private val interfaceDefaultImpl: Any? = null,
     private val contextGetter: () -> Context? = { null },
-) : InvocationHandler {
+) : InvocationHandler, IPCNoProguard {
 
     private val coroutineScope = CoroutineScope(context = Dispatchers.Default + SupervisorJob())
 

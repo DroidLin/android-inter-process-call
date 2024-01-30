@@ -1,11 +1,5 @@
 package com.lza.android.inter.process.call
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
-import kotlin.system.exitProcess
-
 /**
  * @author liuzhongao
  * @since 2024/1/14 23:42
@@ -23,9 +17,9 @@ object LibraryProcessServiceImpl : ProcessService {
     }
 
     override suspend fun suspendTestFunction(path: String, parameters: Int): String {
-        if (!TestApplication.application.isMainProcess) {
-            exitProcess(-1)
-        }
+//        if (!TestApplication.application.isMainProcess) {
+//            exitProcess(-1)
+//        }
         val result = suspendPostDataToRemote(arrayParameter = arrayOf("2", "3"))
         return "${TestApplication.application.getCurrentProcessName()}/${path}/$parameters, result = ${result.joinToString()}"
     }
