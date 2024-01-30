@@ -42,6 +42,7 @@ class ProcessInvocationHandle(
         val declaringClass = this.proxyInterfaceClass
         val kClass = this.proxyInterfaceClass.kotlin
 
+        // remains potential performance problems.
         val kCallable = kClass.members.find { it.match(method = method) }
         return if (kCallable is KFunction<*> && kCallable.isSuspend) {
             this.invokeKotlinSuspendFunction(declaringClass, method, kCallable, (args ?: emptyArray()))
