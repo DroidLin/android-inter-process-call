@@ -7,11 +7,9 @@ import com.lza.android.inter.process.library.stringTypeConvert
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 import java.lang.reflect.Method
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.CoroutineContext
-import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 
 /**
  * 非阻塞式kotlin挂起函数远端被调用端实现
@@ -49,7 +47,7 @@ internal class SuspendRemoteProcessCallBridgeInterceptor(
         parameterTypes: List<Class<*>>,
         parameterValues: List<Any?>,
         suspendCallback: RemoteProcessSuspendCallback
-    ): Any {
+    ): Any? {
         val continuation = object : Continuation<Any?> {
             override val context: CoroutineContext get() = this@SuspendRemoteProcessCallBridgeInterceptor.coroutineScope.coroutineContext
             override fun resumeWith(result: Result<Any?>) = suspendCallback.callbackSuspend(data = result.getOrNull(), throwable = result.exceptionOrNull())
@@ -58,12 +56,6 @@ internal class SuspendRemoteProcessCallBridgeInterceptor(
         // suspend functions need Continuation instance to be the last parameter in parameter array.
         val parameterTypesWithContinuation = parameterTypes + Continuation::class.java
         val method = declaringJvmClass.getDeclaredMethod(methodName, *(parameterTypesWithContinuation.toTypedArray()))
-        return kotlin.runCatching {
-            functionInvocation.invoke(this.block, declaringJvmClass, method, parameterValues.toTypedArray(), continuation)
-        }
-            .onSuccess { data -> if (data != COROUTINE_SUSPENDED) suspendCallback.callbackSuspend(data, null) }
-            .onFailure { throwable -> suspendCallback.callbackSuspend(null, throwable) }
-            .onFailure { it.printStackTrace() }
-            .getOrNull() to null
+        return functionInvocation.invoke(this.block, declaringJvmClass, method, parameterValues.toTypedArray(), continuation)
     }
 }

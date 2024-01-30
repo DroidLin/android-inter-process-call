@@ -5,6 +5,7 @@ import com.lza.android.inter.process.library.ProcessCallFunction
 import com.lza.android.inter.process.library.bridge.ProcessCallBridgeInterface
 import com.lza.android.inter.process.library.bridge.interceptor.BridgeInterceptor
 import com.lza.android.inter.process.library.bridge.parameter.BridgeParameter
+import com.lza.android.inter.process.library.bridge.parameter.InternalInvocationFailureResponse
 import com.lza.android.inter.process.library.bridge.parameter.InvocationResponse
 import com.lza.android.inter.process.library.bridge.parameter.Request
 import com.lza.android.inter.process.library.bridge.parameter.Response
@@ -88,7 +89,8 @@ sealed interface RemoteProcessCallInterface {
             bridgeParameter.request = request
             // Todo: 日志收集
             kotlin.runCatching { this.binderInterface.invoke(bridgeParameter) }
-                .onFailure { it.printStackTrace(); bridgeParameter.response = InvocationResponse(null, it) }
+                .onFailure { it.printStackTrace() }
+                .onFailure { bridgeParameter.response = InternalInvocationFailureResponse(null, it) }
             return bridgeParameter.response
         }
 

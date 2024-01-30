@@ -48,3 +48,15 @@ internal class InvocationResponse(
     }
 
 }
+
+/**
+ * 仅在跨进程调用本身出现exception时创建，用以将近端异常和远端异常区分开
+ */
+internal data class InternalInvocationFailureResponse(
+    val responseObject: Any?,
+    val throwable: Throwable?,
+): Response {
+    companion object {
+        private const val serialVersionUID: Long = -6416825131932194752L
+    }
+}

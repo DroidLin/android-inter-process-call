@@ -34,15 +34,15 @@ class MainActivity : AppCompatActivity() {
 
         val btnCheck: View = findViewById(R.id.btn_check)
         btnCheck.setOnClickListener {
-            val kClass = ProcessService::class.java.kotlin
-            kClass.members.forEach { kCallable ->
-                val stringBuilder = StringBuilder()
-                    .append("memberName: ").append(kCallable.name).append("\n")
-                    .append("isSuspendFunction: ").append(kCallable.isSuspend).append("\n")
-                    .append("returnType isNullable: ").append(kCallable.returnType.isMarkedNullable).append("\n")
-
-                Log.d("MainActivity", stringBuilder.toString())
-            }
+//            val kClass = ProcessService::class.java.kotlin
+//            kClass.members.forEach { kCallable ->
+//                val stringBuilder = StringBuilder()
+//                    .append("memberName: ").append(kCallable.name).append("\n")
+//                    .append("isSuspendFunction: ").append(kCallable.isSuspend).append("\n")
+//                    .append("returnType isNullable: ").append(kCallable.returnType.isMarkedNullable).append("\n")
+//
+//                Log.d("MainActivity", stringBuilder.toString())
+//            }
         }
     }
 }

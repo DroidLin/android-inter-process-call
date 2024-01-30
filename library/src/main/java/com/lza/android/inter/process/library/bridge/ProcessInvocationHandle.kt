@@ -3,29 +3,22 @@ package com.lza.android.inter.process.library.bridge
 import android.content.Context
 import com.lza.android.inter.process.library.ProcessConnectionCenter
 import com.lza.android.inter.process.library.bridge.parameter.InvocationResponse
-import com.lza.android.inter.process.library.interfaces.RemoteProcessCallInterface
-import com.lza.android.inter.process.library.invokeSuspend
+import com.lza.android.inter.process.library.interfaces.ProcessBasicInterface
 import com.lza.android.inter.process.library.match
 import com.lza.android.inter.process.library.unSupportedReturnType
-import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.suspendCancellableCoroutine
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
 import kotlin.coroutines.Continuation
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 import kotlin.reflect.KCallable
 import kotlin.reflect.KFunction
 import kotlin.reflect.KProperty
 import kotlin.reflect.javaType
-import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
+import kotlin.reflect.jvm.isAccessible
+import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
 
 /**
  * @author liuzhongao
@@ -152,49 +145,38 @@ class ProcessInvocationHandle(
         method: Method,
         kotlinFunction: KFunction<Any?>,
         args: Array<Any?>
-    ): Any {
-        val invocationHandle = this
-        this.coroutineScope.launch {
-            val continuation = args.filterIsInstance<Continuation<*>>().firstOrNull() as? Continuation<Any?>
-                ?: throw IllegalArgumentException("no Continuation parameter find in argument!!")
-            val tryConnectResult = invocationHandle.ensureBinderConnectionEstablished()
-            if (!tryConnectResult) {
-                invocationHandle.onSuspendFunctionFailure(method, kotlinFunction, args, continuation)
-                return@launch
-            }
+    ): Any? {
+        val continuation = args.filterIsInstance<Continuation<*>>().firstOrNull() as? Continuation<Any?>
+            ?: throw IllegalArgumentException("no Continuation parameter find in argument!!")
+        val parameterWithoutContinuation = args.filter { it !is Continuation<*> }.toTypedArray()
+        val continuationProxy = ProcessBasicInterface.OneShotContinuation(continuation, coroutineScope.coroutineContext)
+        return this::suspendInvokeKotlinFunction
+            .apply { isAccessible = true }
+            .let { it as KCallable<*> }
+            .call(declaringJvmClass, method, kotlinFunction, parameterWithoutContinuation, continuationProxy)
+    }
 
-            val basicInterface = ProcessConnectionCenter[invocationHandle.destinationProcessKey]
-            if (basicInterface == null || !basicInterface.isStillAlive) {
-                invocationHandle.onSuspendFunctionFailure(method, kotlinFunction, args, continuation)
-                return@launch
-            }
-
-            val deathRecipient = object : RemoteProcessCallInterface.DeathRecipient {
-                override fun binderDead() {
-                    basicInterface.unlinkToDeath(deathRecipient = this)
-                    invocationHandle.coroutineScope.launch {
-                        invocationHandle.onSuspendFunctionFailure(method, kotlinFunction, args, continuation)
-                    }
-                    this@launch.cancel() // 清理当前还处于suspend状态的协程处理器，避免内存泄漏
-                }
-            }
-
-            basicInterface.linkToDeath(deathRecipient = deathRecipient)
-            val (data, throwable) = basicInterface.invokeSuspendRemoteProcessMethod(
-                declaringClass = declaringJvmClass,
-                method = method,
-                args = args
-            ) as Pair<Any?, Throwable?>
-            basicInterface.unlinkToDeath(deathRecipient = deathRecipient)
-            if (throwable != null) {
-                continuation.resumeWithException(exception = throwable)
-                return@launch
-            }
-            if (data != null) {
-                continuation.resume(data)
-            } else invocationHandle.onSuspendFunctionFailure(method, kotlinFunction, args, continuation)
+    private suspend fun suspendInvokeKotlinFunction(
+        declaringJvmClass: Class<*>,
+        method: Method,
+        kotlinFunction: KFunction<Any?>,
+        args: Array<Any?>
+    ): Any? {
+        val tryConnectResult = this.ensureBinderConnectionEstablished()
+        if (!tryConnectResult) {
+            return this.onSuspendFunctionFailure(method, kotlinFunction, args)
         }
-        return COROUTINE_SUSPENDED
+
+        val basicInterface = ProcessConnectionCenter[this.destinationProcessKey]
+        if (basicInterface == null || !basicInterface.isStillAlive) {
+            return this.onSuspendFunctionFailure(method, kotlinFunction, args)
+        }
+
+        return basicInterface.invokeSuspendRemoteProcessMethod(
+            declaringClass = declaringJvmClass,
+            method = method,
+            args = args
+        ) ?: this.onSuspendFunctionFailure(method, kotlinFunction, args)
     }
 
     /**
@@ -202,34 +184,27 @@ class ProcessInvocationHandle(
      *
      * 仅用于协程挂起函数异步返回结果用！！！
      */
-    private fun onSuspendFunctionFailure(
+    private suspend fun onSuspendFunctionFailure(
         method: Method,
         kotlinCallable: KCallable<Any?>,
-        args: Array<Any?>,
-        continuation: Continuation<Any?>
-    ) {
+        args: Array<Any?>
+    ): Any? {
         if (kotlinCallable.returnType.javaType in unSupportedReturnType) {
-            continuation.resume(null)
-            return
+            return null
         }
         if (kotlinCallable.returnType.isMarkedNullable) {
-            continuation.resume(null)
-            return
+            return null
         }
         if (this.interfaceDefaultImpl != null) {
-            // 不需要try-catch，若是该函数内部出现错误，那么直接对外抛出
-            kotlin.runCatching { method.invoke(this.interfaceDefaultImpl, *args) }
-                .onSuccess { if (it != COROUTINE_SUSPENDED) continuation.resume(it) }
-                .onFailure { continuation.resumeWithException(it) }
-            return
+            return suspendCoroutineUninterceptedOrReturn { continuation ->
+                method.invoke(this.interfaceDefaultImpl, *args, continuation)
+            }
         }
-        val exception = IllegalArgumentException(
+        throw IllegalArgumentException(
             "function return type requires non-null, " +
                     "but returns null after IPC call and the fallback operation!! " +
                     "please check."
         )
-        continuation.resumeWithException(exception)
-        return
     }
 
     private suspend fun ensureBinderConnectionEstablished(): Boolean {

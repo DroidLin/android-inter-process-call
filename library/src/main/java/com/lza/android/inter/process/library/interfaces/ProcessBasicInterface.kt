@@ -1,23 +1,24 @@
 package com.lza.android.inter.process.library.interfaces
 
-import android.os.DeadObjectException
 import com.lza.android.inter.process.library.ProcessImplementationCenter
 import com.lza.android.inter.process.library.bridge.interceptor.handShakeBridgeInterceptor
 import com.lza.android.inter.process.library.bridge.interceptor.remoteProcessCallInterceptor
 import com.lza.android.inter.process.library.bridge.interceptor.suspendRemoteProcessCallInterceptor
 import com.lza.android.inter.process.library.bridge.parameter.HandShakeRequest
+import com.lza.android.inter.process.library.bridge.parameter.InternalInvocationFailureResponse
 import com.lza.android.inter.process.library.bridge.parameter.InvocationRequest
 import com.lza.android.inter.process.library.bridge.parameter.InvocationResponse
 import com.lza.android.inter.process.library.bridge.parameter.SuspendInvocationRequest
 import com.lza.android.inter.process.library.invokeSuspend
 import com.lza.android.inter.process.library.safeUnbox
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.suspendCancellableCoroutine
 import java.lang.reflect.Method
 import kotlin.coroutines.Continuation
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.resume
+import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
+import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
+import kotlin.coroutines.resumeWithException
 
 /**
  * 一些和跨进程连接相关的一些调用会放置在此，
@@ -136,19 +137,20 @@ internal sealed interface ProcessBasicInterface {
             method: Method,
             args: Array<Any?>
         ): Any? {
-            return suspendCancellableCoroutine { cancellableContinuation ->
+            return suspendCoroutineUninterceptedOrReturn { continuation ->
+                val continuationProxy = OneShotContinuation(continuation)
+                val deathRecipient = object : RemoteProcessCallInterface.DeathRecipient {
+                    override fun binderDead() {
+                        this@Proxy.unlinkToDeath(deathRecipient = this)
+                        continuationProxy.resume(null)
+                    }
+                }
                 val suspendCallback = object : RemoteProcessSuspendCallback.Stub() {
                     override fun callbackSuspend(data: Any?, throwable: Throwable?) {
-                        if (cancellableContinuation.isCancelled) {
-                            // cancelling from outside coroutine context.
-                            // we should never use continuation ever again.
-                            return
-                        }
+                        this@Proxy.unlinkToDeath(deathRecipient = deathRecipient)
                         if (throwable != null) {
-                            cancellableContinuation.resume(null to throwable)
-                            return
-                        }
-                        cancellableContinuation.resume(data to null)
+                            continuationProxy.resumeWithException(throwable)
+                        } else continuationProxy.resume(data)
                     }
                 }
                 val parameterTypeExcludeContinuation = method.parameterTypes.filter { it != Continuation::class.java }.map { it.name }
@@ -161,7 +163,35 @@ internal sealed interface ProcessBasicInterface {
                     isKotlinFunction = true,
                     remoteProcessSuspendCallback = suspendCallback
                 )
-                this.remoteBridgeInterface.invoke(request = request)
+                this.linkToDeath(deathRecipient = deathRecipient)
+                when (val response = this.remoteBridgeInterface.invoke(request = request)) {
+                    is InternalInvocationFailureResponse -> COROUTINE_SUSPENDED
+                    is InvocationResponse -> {
+                        if (response.throwable != null) {
+                            throw response.throwable
+                        }
+                        response.responseObject
+                    }
+                    else -> throw UnsupportedOperationException("unSupported ResponseType: ${response?.javaClass}")
+                }
+            }
+        }
+    }
+
+    class OneShotContinuation<T>(
+        private val continuation: Continuation<T>,
+        private val coroutineContext: CoroutineContext = EmptyCoroutineContext
+    ) : Continuation<T> {
+
+        @Volatile
+        private var continuationResumed: Boolean = false
+
+        override val context: CoroutineContext get() = this.continuation.context + coroutineContext
+
+        override fun resumeWith(result: Result<T>) {
+            if (!this.continuationResumed) {
+                this.continuation.resumeWith(result)
+                this.continuationResumed = true
             }
         }
     }
