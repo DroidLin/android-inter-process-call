@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import com.lza.android.inter.process.library.bridge.parameter.ProcessRequestBundle
-import com.lza.android.inter.process.library.component.requestBundle
 
 /**
  * 发起广播时，需要保证对应进程一定能收到广播，否则可选择使用静态广播

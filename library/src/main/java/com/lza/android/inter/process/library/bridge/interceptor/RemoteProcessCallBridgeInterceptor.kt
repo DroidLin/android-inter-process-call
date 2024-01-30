@@ -73,13 +73,14 @@ internal class RemoteProcessCallBridgeInterceptor(
         )
     }
 
+    @Deprecated("not in use any more.", replaceWith = ReplaceWith("suspendRemoteProcessCallInterceptor"))
     private fun invokeKotlinSuspendFunction(
         declaringJvmClass: Class<*>,
         methodName: String,
         parameterTypes: List<Class<*>>,
         parameterValues: List<Any?>
     ): Any? {
-        val deferredTask = this.coroutineScope.async {
+        val deferredTask = this.coroutineScope.async<Any?> {
             suspendCancellableCoroutine { continuation ->
                 // suspend functions need Continuation instance to be the last parameter in parameter array.
                 val parameterTypesWithContinuation = parameterTypes + Continuation::class.java
