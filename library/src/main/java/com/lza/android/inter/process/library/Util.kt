@@ -1,12 +1,11 @@
 package com.lza.android.inter.process.library
 
 import java.lang.reflect.Method
+import kotlin.coroutines.Continuation
 import kotlin.reflect.KCallable
 import kotlin.reflect.KFunction
 import kotlin.reflect.KProperty
-import kotlin.reflect.full.callSuspend
 import kotlin.reflect.jvm.javaMethod
-import kotlin.reflect.jvm.kotlinFunction
 
 
 /**
@@ -42,6 +41,9 @@ internal val String.stringTypeConvert: Class<*>
 internal val Class<*>.isKotlinClass: Boolean
     get() = this.getDeclaredAnnotation(Metadata::class.java) != null
 
+internal val Method.isSuspendFunction: Boolean
+    get() = parameterTypes.lastOrNull() == Continuation::class.java
+
 internal fun KCallable<*>.match(method: Method): Boolean {
     return when (this) {
         is KProperty<*> -> this.matchProperty(method = method)
@@ -59,7 +61,9 @@ internal fun KFunction<*>.matchFunction(method: Method): Boolean {
 }
 
 internal suspend fun Method.invokeSuspend(instance: Any, vararg args: Any?): Any? {
-    return requireNotNull(this.kotlinFunction).callSuspend(instance, *args)
+    return kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn { continuation ->
+        this.invoke(instance, *args, continuation)
+    }
 }
 
 internal fun Any?.safeUnbox(): Any? {

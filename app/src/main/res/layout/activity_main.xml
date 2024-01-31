@@ -32,4 +32,22 @@
         android:layout_height="wrap_content"
         android:text="Suspend Function Call" />
 
+    <Button
+        android:id="@+id/btn_interface_property_call_null"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Property Call Return Null" />
+
+    <Button
+        android:id="@+id/btn_interface_normal_function_call_null"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Function Call Return Null" />
+
+    <Button
+        android:id="@+id/btn_interface_suspend_function_call_null"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Suspend Function Call Return Null" />
+
 </LinearLayout>

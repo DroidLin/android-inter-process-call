@@ -43,6 +43,30 @@ class MainActivity : AppCompatActivity() {
                 Log.i("MainActivity", "remote call cost: ${(SystemClock.elapsedRealtimeNanos() - startTimeStamp) / 1_000_000L}ms")
             }
         }
+
+        findViewById<View>(R.id.btn_interface_property_call_null).setOnClickProcessInterfaceListener { view ->
+            val startTimeStamp = SystemClock.elapsedRealtimeNanos()
+            val remoteResult = this.processNameNull
+            Log.i("MainActivity", "remoteProcessName: ${remoteResult}")
+            Log.i("MainActivity", "remote call cost: ${(SystemClock.elapsedRealtimeNanos() - startTimeStamp) / 1_000_000L}ms")
+        }
+
+        findViewById<View>(R.id.btn_interface_normal_function_call_null).setOnClickProcessInterfaceListener { view ->
+            val startTimeStamp = SystemClock.elapsedRealtimeNanos()
+            val remoteResult = this.testFunctionNull(path = "122312", 12882198)
+            Log.i("MainActivity", "testFunction: ${remoteResult}")
+            Log.i("MainActivity", "remote call cost: ${(SystemClock.elapsedRealtimeNanos() - startTimeStamp) / 1_000_000L}ms")
+        }
+
+        findViewById<View>(R.id.btn_interface_suspend_function_call_null).setOnClickProcessInterfaceListener { view ->
+            this@MainActivity.lifecycleScope.launch {
+                val startTimeStamp = SystemClock.elapsedRealtimeNanos()
+                val remoteResult = this@setOnClickProcessInterfaceListener.suspendTestFunctionNull(path = "122312", 12882198)
+                Log.i("MainActivity", "suspendTestFunction: ${remoteResult}")
+                Log.i("MainActivity", "remote call cost: ${(SystemClock.elapsedRealtimeNanos() - startTimeStamp) / 1_000_000L}ms")
+            }
+        }
+
     }
 
     private inline fun View.setOnClickProcessInterfaceListener(crossinline onClick: ProcessService.(View) -> Unit) {
