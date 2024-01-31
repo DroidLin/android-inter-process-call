@@ -15,14 +15,13 @@ import java.lang.reflect.Method
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
-import kotlin.reflect.jvm.isAccessible
 import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
+import kotlin.reflect.jvm.isAccessible
 
 /**
  * @author liuzhongao
  * @since 2024/1/10 23:00
  */
-@OptIn(ExperimentalStdlibApi::class)
 class ProcessInvocationHandle(
     private val proxyInterfaceClass: Class<*>,
     private val currentProcessKey: String,
