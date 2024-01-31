@@ -36,12 +36,10 @@ class ProcessInvocationHandle(
             Dispatchers.Default
         } else this.coroutineContext
 
-    override fun invoke(proxy: Any?, method: Method?, args: Array<Any?>?): Any? {
-        requireNotNull(method) { "require method not null." }
-        val declaringClass = this.proxyInterfaceClass
+    override fun invoke(proxy: Any, method: Method, args: Array<Any?>?): Any? {
         return if (method.isSuspendFunction) {
-            this.invokeKotlinSuspendFunction(declaringClass, method, (args ?: emptyArray()))
-        } else this.invokeNonSuspendKotlinFunction(declaringClass, method, (args ?: emptyArray()))
+            this.invokeKotlinSuspendFunction(this.proxyInterfaceClass, method, (args ?: emptyArray()))
+        } else this.invokeNonSuspendKotlinFunction(this.proxyInterfaceClass, method, (args ?: emptyArray()))
     }
 
     /**

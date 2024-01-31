@@ -53,15 +53,15 @@ internal object ProcessConnectionCenter {
         }.onFailure { it.printStackTrace() }
     }
 
-    fun isRemoteConnected(destKey: String): Boolean = iBinderMap[destKey]?.isStillAlive ?: false
+    fun isRemoteConnected(destKey: String): Boolean = this.iBinderMap[destKey]?.isStillAlive ?: false
 
     suspend fun tryConnectToRemote(context: Context, selfKey: String, destKey: String): Boolean {
-        val bridgeInterface = iBinderMap[destKey]
+        val bridgeInterface = this.iBinderMap[destKey]
         if (bridgeInterface != null && bridgeInterface.isStillAlive) {
             return true
         }
 
-        val previousAsyncConnectionTask = pendingConnectRequestMap[destKey]
+        val previousAsyncConnectionTask = this.pendingConnectRequestMap[destKey]
         if (previousAsyncConnectionTask != null) {
             return previousAsyncConnectionTask.await()
         }

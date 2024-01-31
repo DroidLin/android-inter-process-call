@@ -18,7 +18,7 @@ import java.util.LinkedList
  * @since 2024/1/18 19:25
  */
 val ProcessCallFunction.rpcInterface: RemoteProcessCallInterface
-    get() = RemoteProcessCallInterface.Proxy(binderInterface = this)
+    get() = RemoteProcessCallInterface.asInterface(bridgeInterface = this)
 
 internal val RemoteProcessCallInterface.binder: IBinder
     get() {
@@ -76,12 +76,16 @@ sealed interface RemoteProcessCallInterface {
         private val deathRecipientList = LinkedList<DeathRecipient>()
 
         init {
-            this.binderInterface.asBinder().linkToDeath({
-                val deathRecipientCopy = synchronized(this.deathRecipientList) {
-                    this.deathRecipientList.toList()
+            val binderDeathRecipient = object : IBinder.DeathRecipient {
+                override fun binderDied() {
+                    this@Proxy.binderInterface.asBinder().unlinkToDeath(this, 0)
+                    val deathRecipientCopy = synchronized(this@Proxy.deathRecipientList) {
+                        this@Proxy.deathRecipientList.toList()
+                    }
+                    deathRecipientCopy.forEach { it.binderDead() }
                 }
-                deathRecipientCopy.forEach { it.binderDead() }
-            }, 0)
+            }
+            this.binderInterface.asBinder().linkToDeath(binderDeathRecipient, 0)
         }
 
         override fun invoke(request: Request): Response? {

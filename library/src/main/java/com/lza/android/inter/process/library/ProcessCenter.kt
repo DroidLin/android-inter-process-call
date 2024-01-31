@@ -45,25 +45,31 @@ object ProcessCenter : IPCenter {
         defaultImpl: T?,
         coroutineContext: CoroutineContext
     ): T {
-        val proxyInterface = proxyInterfaceCache[clazz]?.get()
+        val proxyInterface = this.proxyInterfaceCache[clazz]?.get()
         if (proxyInterface != null) {
             return proxyInterface as T
         }
-        val processCallInitConfig = requireNotNull(ProcessConnectionCenter.processCallInitConfig) { "call init before getService!!" }
-        val identifier = processCallInitConfig.identifier
-        val proxyInstance = Proxy.newProxyInstance(
-            clazz.classLoader,
-            arrayOf(clazz),
-            ProcessInvocationHandle(
-                proxyInterfaceClass = clazz,
-                currentProcessKey = identifier.keyForCurrentProcess,
-                destinationProcessKey = destProcessKey,
-                interfaceDefaultImpl = defaultImpl,
-                contextGetter = { processCallInitConfig.context },
-                coroutineContext = coroutineContext
-            )
-        ) as T
-        proxyInterfaceCache[clazz] = WeakReference(proxyInstance)
-        return proxyInstance
+        if (this.proxyInterfaceCache[clazz]?.get() == null) {
+            synchronized(this.proxyInterfaceCache) {
+                if (this.proxyInterfaceCache[clazz]?.get() == null) {
+                    val processCallInitConfig = requireNotNull(ProcessConnectionCenter.processCallInitConfig) { "call init before getService!!" }
+                    val identifier = processCallInitConfig.identifier
+                    val proxyInstance = Proxy.newProxyInstance(
+                        clazz.classLoader,
+                        arrayOf(clazz),
+                        ProcessInvocationHandle(
+                            proxyInterfaceClass = clazz,
+                            currentProcessKey = identifier.keyForCurrentProcess,
+                            destinationProcessKey = destProcessKey,
+                            interfaceDefaultImpl = defaultImpl,
+                            contextGetter = { processCallInitConfig.context },
+                            coroutineContext = coroutineContext
+                        )
+                    ) as T
+                    this.proxyInterfaceCache[clazz] = WeakReference(proxyInstance)
+                }
+            }
+        }
+        return requireNotNull(this.proxyInterfaceCache[clazz]?.get() as? T)
     }
 }
