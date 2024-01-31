@@ -1,5 +1,7 @@
 package com.lza.android.inter.process.library.interfaces
 
+import android.os.IBinder
+import com.lza.android.inter.process.library.ProcessCallFunction
 import com.lza.android.inter.process.library.bridge.interceptor.callbackBridgeInterceptor
 import com.lza.android.inter.process.library.bridge.parameter.CallbackRequest
 
@@ -7,6 +9,13 @@ import com.lza.android.inter.process.library.bridge.parameter.CallbackRequest
  * @author liuzhongao
  * @since 2024/1/21 13:01
  */
+internal val RemoteProcessSuspendCallback.binder: IBinder
+    get() = when (this) {
+        is RemoteProcessSuspendCallback.Stub -> rpcInterface.binder
+        is RemoteProcessSuspendCallback.Proxy -> remoteProcessCallInterface.binder
+        else -> throw UnsupportedOperationException("Unknown suspend callback type: ${this.javaClass.name}.")
+    }
+
 internal sealed interface RemoteProcessSuspendCallback {
 
     val remoteProcessCallInterface: RemoteProcessCallInterface
@@ -18,11 +27,15 @@ internal sealed interface RemoteProcessSuspendCallback {
         fun asInterface(remoteProcessCallInterface: RemoteProcessCallInterface): RemoteProcessSuspendCallback {
             return Proxy(remoteProcessCallInterface = remoteProcessCallInterface)
         }
+        @JvmStatic
+        fun asInterface(binder: IBinder): RemoteProcessSuspendCallback {
+            return Proxy(remoteProcessCallInterface = ProcessCallFunction.Stub.asInterface(binder).rpcInterface)
+        }
     }
 
     abstract class Stub : RemoteProcessSuspendCallback {
 
-        private val rpcInterface = RemoteProcessCallInterface.Stub()
+        val rpcInterface = RemoteProcessCallInterface.Stub()
 
         final override val remoteProcessCallInterface: RemoteProcessCallInterface
             get() = this.rpcInterface

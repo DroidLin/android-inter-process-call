@@ -20,8 +20,7 @@ class LibraryActivity : AppCompatActivity() {
                 val startTimeStamp = SystemClock.elapsedRealtimeNanos()
                 val processService = ProcessCenter.getService(ProcessConst.KEY_MAIN_PROCESS, ProcessService::class.java)
                 val remoteProcessName = processService.suspendTestFunction("libraryActivity", 500)
-                val count = with(processService) { remoteProcessName.calculateStringCount() }
-                Log.i("LibraryActivity", "remoteProcessName: $remoteProcessName, count: $count")
+                Log.i("LibraryActivity", "remoteProcessName: $remoteProcessName")
                 Log.i(
                     "LibraryActivity",
                     "remote call cost: ${(SystemClock.elapsedRealtimeNanos() - startTimeStamp) / 1_000_000L}ms"

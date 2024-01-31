@@ -21,28 +21,34 @@ class MainActivity : AppCompatActivity() {
             v.context.startActivity(intent)
         }
 
-        val btnRemoteCall: View = findViewById(R.id.btn_remote_call)
-        btnRemoteCall.setOnClickListener { v ->
-            this.lifecycleScope.launch {
+        findViewById<View>(R.id.btn_interface_property_call).setOnClickProcessInterfaceListener { view ->
+            val startTimeStamp = SystemClock.elapsedRealtimeNanos()
+            val remoteResult = this.processName
+            Log.i("MainActivity", "remoteProcessName: ${remoteResult}")
+            Log.i("MainActivity", "remote call cost: ${(SystemClock.elapsedRealtimeNanos() - startTimeStamp) / 1_000_000L}ms")
+        }
+
+        findViewById<View>(R.id.btn_interface_normal_function_call).setOnClickProcessInterfaceListener { view ->
+            val startTimeStamp = SystemClock.elapsedRealtimeNanos()
+            val remoteResult = this.testFunction(path = "122312", 12882198)
+            Log.i("MainActivity", "testFunction: ${remoteResult}")
+            Log.i("MainActivity", "remote call cost: ${(SystemClock.elapsedRealtimeNanos() - startTimeStamp) / 1_000_000L}ms")
+        }
+
+        findViewById<View>(R.id.btn_interface_suspend_function_call).setOnClickProcessInterfaceListener { view ->
+            this@MainActivity.lifecycleScope.launch {
                 val startTimeStamp = SystemClock.elapsedRealtimeNanos()
-                val processService = ProcessCenter.getService(ProcessConst.KEY_LIBRARY_PROCESS, ProcessService::class.java, LibraryProcessServiceImpl)
-                val remoteResult = processService.processName
-                Log.i("MainActivity", "remoteProcessName: ${remoteResult}")
+                val remoteResult = this@setOnClickProcessInterfaceListener.suspendTestFunction(path = "122312", 12882198)
+                Log.i("MainActivity", "suspendTestFunction: ${remoteResult}")
                 Log.i("MainActivity", "remote call cost: ${(SystemClock.elapsedRealtimeNanos() - startTimeStamp) / 1_000_000L}ms")
             }
         }
+    }
 
-        val btnCheck: View = findViewById(R.id.btn_check)
-        btnCheck.setOnClickListener {
-//            val kClass = ProcessService::class.java.kotlin
-//            kClass.members.forEach { kCallable ->
-//                val stringBuilder = StringBuilder()
-//                    .append("memberName: ").append(kCallable.name).append("\n")
-//                    .append("isSuspendFunction: ").append(kCallable.isSuspend).append("\n")
-//                    .append("returnType isNullable: ").append(kCallable.returnType.isMarkedNullable).append("\n")
-//
-//                Log.d("MainActivity", stringBuilder.toString())
-//            }
+    private inline fun View.setOnClickProcessInterfaceListener(crossinline onClick: ProcessService.(View) -> Unit) {
+        val processService = ProcessCenter.getService(ProcessConst.KEY_LIBRARY_PROCESS, ProcessService::class.java, LibraryProcessServiceImpl)
+        this.setOnClickListener { view ->
+            processService.onClick(view)
         }
     }
 }

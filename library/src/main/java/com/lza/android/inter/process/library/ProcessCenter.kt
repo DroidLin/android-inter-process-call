@@ -7,6 +7,8 @@ import com.lza.android.inter.process.library.interfaces.IPCenter
 import java.lang.ref.WeakReference
 import java.lang.reflect.Proxy
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 
 /**
  * @author liuzhongao
@@ -27,10 +29,21 @@ object ProcessCenter : IPCenter {
         ProcessImplementationCenter[clazz] = impl
     }
 
+    override fun <T : IPCNoProguard> getService(destProcessKey: String, clazz: Class<T>): T {
+        return this.getService(destProcessKey, clazz, null)
+    }
+
     override fun <T : IPCNoProguard> getService(
         destProcessKey: String,
         clazz: Class<T>,
         defaultImpl: T?
+    ): T = this.getService(destProcessKey, clazz, defaultImpl, EmptyCoroutineContext)
+
+    override fun <T : IPCNoProguard> getService(
+        destProcessKey: String,
+        clazz: Class<T>,
+        defaultImpl: T?,
+        coroutineContext: CoroutineContext
     ): T {
         val proxyInterface = proxyInterfaceCache[clazz]?.get()
         if (proxyInterface != null) {
@@ -46,7 +59,8 @@ object ProcessCenter : IPCenter {
                 currentProcessKey = identifier.keyForCurrentProcess,
                 destinationProcessKey = destProcessKey,
                 interfaceDefaultImpl = defaultImpl,
-                contextGetter = { processCallInitConfig.context }
+                contextGetter = { processCallInitConfig.context },
+                coroutineContext = coroutineContext
             )
         ) as T
         proxyInterfaceCache[clazz] = WeakReference(proxyInstance)

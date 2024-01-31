@@ -17,11 +17,7 @@ object LibraryProcessServiceImpl : ProcessService {
     }
 
     override suspend fun suspendTestFunction(path: String, parameters: Int): String {
-//        if (!TestApplication.application.isMainProcess) {
-//            exitProcess(-1)
-//        }
-        val result = suspendPostDataToRemote(arrayParameter = arrayOf("2", "3"))
-        return "${TestApplication.application.getCurrentProcessName()}/${path}/$parameters, result = ${result.joinToString()}"
+        return "${TestApplication.application.getCurrentProcessName()}/${path}/$parameters"
     }
 
     override suspend fun suspendPostDataToRemote(arrayParameter: Array<String>): Array<Int> {

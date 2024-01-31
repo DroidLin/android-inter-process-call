@@ -203,9 +203,7 @@ internal class SuspendInvocationRequest(
         },
         isKotlinFunction = parcel.readInt() == 1,
         remoteProcessSuspendCallback = RemoteProcessSuspendCallback.asInterface(
-            remoteProcessCallInterface = ProcessCallFunction.Stub.asInterface(
-                parcel.readStrongBinder()
-            ).rpcInterface
+            parcel.readStrongBinder()
         )
     )
 

@@ -1,37 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
     tools:context=".MainActivity">
 
     <Button
         android:id="@+id/btn_send_action"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="send action"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:text="Go To Library Activity" />
 
     <Button
-        android:id="@+id/btn_remote_call"
+        android:id="@+id/btn_interface_property_call"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="remote call"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/btn_send_action" />
+        android:text="Property Call" />
 
     <Button
-        android:id="@+id/btn_check"
+        android:id="@+id/btn_interface_normal_function_call"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="check btn"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/btn_remote_call" />
+        android:text="Function Call" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+    <Button
+        android:id="@+id/btn_interface_suspend_function_call"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Suspend Function Call" />
+
+</LinearLayout>

@@ -167,6 +167,8 @@ internal sealed interface ProcessBasicInterface {
                 when (val response = this.remoteBridgeInterface.invoke(request = request)) {
                     is InternalInvocationFailureResponse -> COROUTINE_SUSPENDED
                     is InvocationResponse -> {
+                        // should clear reference of deathRecipient to prevent memory leak.
+                        this.unlinkToDeath(deathRecipient = deathRecipient)
                         if (response.throwable != null) {
                             throw response.throwable
                         }
@@ -186,7 +188,7 @@ internal sealed interface ProcessBasicInterface {
         @Volatile
         private var continuationResumed: Boolean = false
 
-        override val context: CoroutineContext get() = this.continuation.context + coroutineContext
+        override val context: CoroutineContext get() = this.continuation.context + this.coroutineContext
 
         override fun resumeWith(result: Result<T>) {
             if (!this.continuationResumed) {

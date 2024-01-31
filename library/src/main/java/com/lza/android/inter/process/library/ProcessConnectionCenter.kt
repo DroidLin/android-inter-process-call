@@ -6,6 +6,7 @@ import com.lza.android.inter.process.library.bridge.parameter.ConnectionContext
 import com.lza.android.inter.process.library.bridge.parameter.ProcessCallInitConfig
 import com.lza.android.inter.process.library.bridge.parameter.ProcessRequestBundle
 import com.lza.android.inter.process.library.interfaces.ProcessBasicInterface
+import com.lza.android.inter.process.library.interfaces.RemoteProcessCallInterface
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
@@ -31,7 +32,14 @@ internal object ProcessConnectionCenter {
     fun binderEstablished(processKey: String, basicInterface: ProcessBasicInterface) {
         val existBridgeInterface = iBinderMap[processKey]
         if (existBridgeInterface == null || !existBridgeInterface.isStillAlive) {
-            basicInterface.linkToDeath { iBinderMap.remove(processKey) }
+            basicInterface.linkToDeath(
+                deathRecipient = object : RemoteProcessCallInterface.DeathRecipient {
+                    override fun binderDead() {
+                        basicInterface.unlinkToDeath(deathRecipient = this)
+                        this@ProcessConnectionCenter.iBinderMap.remove(processKey)
+                    }
+                }
+            )
             iBinderMap[processKey] = basicInterface
         }
     }
