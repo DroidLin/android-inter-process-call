@@ -149,7 +149,7 @@ internal sealed interface ProcessBasicInterface {
                     override fun callbackSuspend(data: Any?, throwable: Throwable?) {
                         this@Proxy.unlinkToDeath(deathRecipient = deathRecipient)
                         if (throwable != null) {
-                            continuationProxy.resumeWithException(throwable)
+                            continuationProxy.resumeWithException(Throwable(throwable))
                         } else continuationProxy.resume(data)
                     }
                 }
@@ -170,7 +170,7 @@ internal sealed interface ProcessBasicInterface {
                         // should clear reference of deathRecipient to prevent memory leak.
                         this.unlinkToDeath(deathRecipient = deathRecipient)
                         if (response.throwable != null) {
-                            throw response.throwable
+                            throw Throwable(response.throwable)
                         }
                         response.responseObject
                     }

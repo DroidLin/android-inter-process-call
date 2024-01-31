@@ -17,6 +17,7 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
 import kotlin.reflect.jvm.isAccessible
+import kotlin.reflect.jvm.javaType
 
 /**
  * @author liuzhongao
@@ -83,7 +84,7 @@ class ProcessInvocationHandle(
         // remains potential performance problems.
         val kCallable = kClass.members.find { it.match(method = method) }
             ?: throw IllegalArgumentException("can not find kotlin function represent target method: $method")
-        if (kCallable.returnType.isMarkedNullable) {
+        if (kCallable.returnType.javaType in unSupportedReturnType || kCallable.returnType.isMarkedNullable) {
             return null
         }
         if (this@ProcessInvocationHandle.interfaceDefaultImpl != null) {
@@ -155,7 +156,7 @@ class ProcessInvocationHandle(
         // remains potential performance problems.
         val kCallable = kClass.members.find { it.match(method = method) }
             ?: throw IllegalArgumentException("can not find kotlin function represent target method: $method")
-        if (kCallable.returnType.isMarkedNullable) {
+        if (kCallable.returnType.javaType in unSupportedReturnType || kCallable.returnType.isMarkedNullable) {
             return null
         }
         if (this.interfaceDefaultImpl != null) {
