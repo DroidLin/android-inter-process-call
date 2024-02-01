@@ -53,16 +53,17 @@ object ProcessCenter : IPCenter {
             synchronized(this.proxyInterfaceCache) {
                 if (this.proxyInterfaceCache[clazz]?.get() == null) {
                     val processCallInitConfig = requireNotNull(ProcessConnectionCenter.processCallInitConfig) { "call init before getService!!" }
-                    val identifier = processCallInitConfig.identifier
+                    val currentProcessKey = processCallInitConfig.identifier.keyForCurrentProcess
+                    val context = processCallInitConfig.context
                     val proxyInstance = Proxy.newProxyInstance(
                         clazz.classLoader,
                         arrayOf(clazz),
                         ProcessInvocationHandle(
                             proxyInterfaceClass = clazz,
-                            currentProcessKey = identifier.keyForCurrentProcess,
+                            currentProcessKey = currentProcessKey,
                             destinationProcessKey = destProcessKey,
                             interfaceDefaultImpl = defaultImpl,
-                            contextGetter = { processCallInitConfig.context },
+                            context = context,
                             coroutineContext = coroutineContext
                         )
                     ) as T

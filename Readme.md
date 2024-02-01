@@ -1,8 +1,4 @@
-# TODO List
-- [ ] exception handler for synchronized or suspend functions call.
-
 # How to use
-
 ```
 // project build.gradle
 repositories {
@@ -14,3 +10,7 @@ dependencies {
     implementation("com.github.DroidLin:android-inter-process-call:${latestRelease}")
 }
 ```
+
+# TODO List
+- [ ] exception handler for synchronized or suspend functions call.
+- [ ] maybe use annotation processor to collect implementation interfaces.

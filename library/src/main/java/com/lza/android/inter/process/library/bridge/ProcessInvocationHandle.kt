@@ -28,7 +28,7 @@ class ProcessInvocationHandle(
     private val destinationProcessKey: String,
     private val coroutineContext: CoroutineContext = EmptyCoroutineContext,
     private val interfaceDefaultImpl: Any? = null,
-    private val contextGetter: () -> Context? = { null },
+    private val context: Context,
 ) : InvocationHandler, IPCNoProguard {
 
     private val availableCoroutineContext: CoroutineContext
@@ -82,7 +82,7 @@ class ProcessInvocationHandle(
         }
         if (this@ProcessInvocationHandle.interfaceDefaultImpl != null) {
             // no need try/catch, export exceptions to outside caller.
-            return method.invoke(this@ProcessInvocationHandle.interfaceDefaultImpl, args)
+            return method.invoke(this@ProcessInvocationHandle.interfaceDefaultImpl, *args)
         }
         throw IllegalArgumentException(
             "function return type requires non-null type, " +
@@ -156,11 +156,10 @@ class ProcessInvocationHandle(
 
     private suspend fun ensureBinderConnectionEstablished(): Boolean {
         return if (!ProcessConnectionCenter.isRemoteConnected(destKey = this.destinationProcessKey)) {
-            val context = requireNotNull(this.contextGetter()) { "please call ProcessCenter#init, before launch process invocation." }
             ProcessConnectionCenter.tryConnectToRemote(
-                context = context,
-                selfKey = this@ProcessInvocationHandle.currentProcessKey,
-                destKey = this@ProcessInvocationHandle.destinationProcessKey,
+                context = this.context,
+                selfKey = this.currentProcessKey,
+                destKey = this.destinationProcessKey,
             )
         } else true
     }

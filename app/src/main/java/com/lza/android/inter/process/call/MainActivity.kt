@@ -86,7 +86,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private inline fun View.setOnClickProcessInterfaceListener(crossinline onClick: ProcessService.(View) -> Unit) {
-        val processService = ProcessCenter.getService(ProcessConst.KEY_LIBRARY_PROCESS, ProcessService::class.java, LibraryProcessServiceImpl)
+        val processService = ProcessCenter.getService(ProcessConst.KEY_MAIN_PROCESS, ProcessService::class.java, LibraryProcessServiceImpl)
         this.setOnClickListener { view ->
             processService.onClick(view)
         }
