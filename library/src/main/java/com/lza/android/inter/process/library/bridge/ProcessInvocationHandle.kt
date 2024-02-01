@@ -23,11 +23,11 @@ import kotlin.reflect.jvm.javaType
  * @since 2024/1/10 23:00
  */
 class ProcessInvocationHandle(
+    private val context: Context,
     private val proxyInterfaceClass: Class<*>,
     private val currentProcessKey: String,
     private val destinationProcessKey: String,
     private val coroutineContext: CoroutineContext = EmptyCoroutineContext,
-    private val context: Context,
     private val interfaceDefaultImpl: Any? = null,
 ) : InvocationHandler, IPCNoProguard {
 
