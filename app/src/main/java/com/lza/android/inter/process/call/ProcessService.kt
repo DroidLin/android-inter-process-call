@@ -25,4 +25,8 @@ interface ProcessService : IPCNoProguard {
     suspend fun suspendPostDataToRemote(arrayParameter: Array<String>): Array<Int>
 
     suspend fun String.calculateStringCount(): Int
+
+    fun testFunctionNoReturn() {}
+
+    suspend fun suspendTestFunctionNoReturn() {}
 }

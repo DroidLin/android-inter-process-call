@@ -19,9 +19,6 @@ interface IPCenter {
         clazz: Class<T>,
     ): T
 
-    /**
-     * @param defaultImpl 用于跨进程调用失败后当前进程的降级操作
-     */
     fun <T : IPCNoProguard> getService(
         destProcessKey: String,
         clazz: Class<T>,
@@ -29,7 +26,7 @@ interface IPCenter {
     ): T
 
     /**
-     * @param defaultImpl 用于跨进程调用失败后当前进程的降级操作
+     * @param defaultImpl call on remote process call failure
      */
     fun <T : IPCNoProguard> getService(
         destProcessKey: String,

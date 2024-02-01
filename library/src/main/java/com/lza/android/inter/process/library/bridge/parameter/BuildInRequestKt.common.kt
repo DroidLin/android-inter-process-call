@@ -20,7 +20,6 @@ internal class InvocationRequest(
     val interfaceMethodName: String,
     val interfaceParameterTypes: List<String>,
     val interfaceParameters: List<Any?>,
-    val isSuspendFunction: Boolean = false,
     val isKotlinFunction: Boolean = false,
 ) : Request, Parcelable {
 
@@ -45,7 +44,6 @@ internal class InvocationRequest(
                 parcel.readList(list, InvocationRequest::class.java.classLoader)
             }
         },
-        isSuspendFunction = parcel.readInt() == 1,
         isKotlinFunction = parcel.readInt() == 1
     )
 
@@ -54,7 +52,6 @@ internal class InvocationRequest(
         parcel.writeString(this.interfaceMethodName)
         parcel.writeList(this.interfaceParameterTypes)
         parcel.writeList(this.interfaceParameters)
-        parcel.writeInt(if (this.isSuspendFunction) 1 else 0)
         parcel.writeInt(if (this.isKotlinFunction) 1 else 0)
     }
 
@@ -162,7 +159,6 @@ internal class SuspendInvocationRequest(
     val interfaceMethodName: String,
     val interfaceParameterTypes: List<String>,
     val interfaceParameters: List<Any?>,
-    val isKotlinFunction: Boolean = false,
     val remoteProcessSuspendCallback: RemoteProcessSuspendCallback
 ) : Request, Parcelable {
 
@@ -201,7 +197,6 @@ internal class SuspendInvocationRequest(
                 )
             }
         },
-        isKotlinFunction = parcel.readInt() == 1,
         remoteProcessSuspendCallback = RemoteProcessSuspendCallback.asInterface(
             parcel.readStrongBinder()
         )
@@ -212,7 +207,6 @@ internal class SuspendInvocationRequest(
         parcel.writeString(this.interfaceMethodName)
         parcel.writeList(this.interfaceParameterTypes)
         parcel.writeList(this.interfaceParameters)
-        parcel.writeInt(if (this.isKotlinFunction) 1 else 0)
         parcel.writeStrongBinder(this.remoteProcessSuspendCallback.remoteProcessCallInterface.binder)
     }
 

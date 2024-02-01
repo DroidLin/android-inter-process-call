@@ -37,7 +37,6 @@ internal class RemoteProcessCallBridgeInterceptor(
         val parameterClassTypes = request.interfaceParameterTypes.stringTypeConvert
         return if (request.isKotlinFunction) {
             this.invokeKotlinFunction(
-                isSuspendFunction = request.isSuspendFunction,
                 declaringJvmClass = declaringJvmClass,
                 methodName = request.interfaceMethodName,
                 parameterTypes = parameterClassTypes,
@@ -52,11 +51,11 @@ internal class RemoteProcessCallBridgeInterceptor(
     }
 
     private fun invokeKotlinFunction(
-        isSuspendFunction: Boolean,
         declaringJvmClass: Class<*>,
         methodName: String,
         parameterTypes: List<Class<*>>,
-        parameterValues: List<Any?>
+        parameterValues: List<Any?>,
+        isSuspendFunction: Boolean = false
     ): Any? {
         return if (isSuspendFunction) {
             this.invokeKotlinSuspendFunction(

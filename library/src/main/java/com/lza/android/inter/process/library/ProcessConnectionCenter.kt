@@ -67,7 +67,7 @@ internal object ProcessConnectionCenter {
         }
 
         return coroutineScope {
-            val asyncConnectionTask: Deferred<Boolean> = async {
+            async {
                 suspendCancellableCoroutine { cancellableContinuation ->
                     if (!this@ProcessConnectionCenter::processCallInitConfig.isInitialized) {
                         cancellableContinuation.resumeWithException(NullPointerException("call ProcessCenter#init before trying to connect to remote."))
@@ -119,8 +119,8 @@ internal object ProcessConnectionCenter {
                     }.onFailure { cancellableContinuation.resumeOrElse(Result.failure(exception = it)) { /*Todo: 补充连接超时返回监控日志*/ } }
                 }
             }
-            this@ProcessConnectionCenter.pendingConnectRequestMap[destKey] = asyncConnectionTask
-            asyncConnectionTask.await()
+                .also { asyncConnectionTask -> this@ProcessConnectionCenter.pendingConnectRequestMap[destKey] = asyncConnectionTask }
+                .await()
         }
     }
 

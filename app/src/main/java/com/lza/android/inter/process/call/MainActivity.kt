@@ -1,11 +1,11 @@
 package com.lza.android.inter.process.call
 
 import android.content.Intent
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.SystemClock
 import android.util.Log
 import android.view.View
+import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.lza.android.inter.process.library.ProcessCenter
 import kotlinx.coroutines.launch
@@ -63,6 +63,22 @@ class MainActivity : AppCompatActivity() {
                 val startTimeStamp = SystemClock.elapsedRealtimeNanos()
                 val remoteResult = this@setOnClickProcessInterfaceListener.suspendTestFunctionNull(path = "122312", 12882198)
                 Log.i("MainActivity", "suspendTestFunction return null: ${remoteResult}")
+                Log.i("MainActivity", "remote call cost: ${(SystemClock.elapsedRealtimeNanos() - startTimeStamp) / 1_000_000L}ms")
+            }
+        }
+
+        findViewById<View>(R.id.btn_interface_normal_function_call_no_return).setOnClickProcessInterfaceListener { view ->
+            val startTimeStamp = SystemClock.elapsedRealtimeNanos()
+            val remoteResult = this.testFunctionNoReturn()
+            Log.i("MainActivity", "testFunction no return: ${remoteResult}")
+            Log.i("MainActivity", "remote call cost: ${(SystemClock.elapsedRealtimeNanos() - startTimeStamp) / 1_000_000L}ms")
+        }
+
+        findViewById<View>(R.id.btn_interface_suspend_function_call_no_return).setOnClickProcessInterfaceListener { view ->
+            this@MainActivity.lifecycleScope.launch {
+                val startTimeStamp = SystemClock.elapsedRealtimeNanos()
+                val remoteResult = this@setOnClickProcessInterfaceListener.suspendTestFunctionNoReturn()
+                Log.i("MainActivity", "suspendTestFunction no return: ${remoteResult}")
                 Log.i("MainActivity", "remote call cost: ${(SystemClock.elapsedRealtimeNanos() - startTimeStamp) / 1_000_000L}ms")
             }
         }

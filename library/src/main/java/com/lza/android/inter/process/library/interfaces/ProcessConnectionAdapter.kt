@@ -4,8 +4,10 @@ import android.content.Context
 import com.lza.android.inter.process.library.bridge.parameter.ProcessRequestBundle
 
 /**
- * 用作跨进程连接发起的适配层，取决于上层业务实现的区别，
- * 可以通过广播、Service、ContentProvider等基础组件传递binder对象到远端实现跨进程连接
+ * used as adapter for connect to remote.
+ *
+ * implementation can decide which way to connect to remote via static Broadcast,
+ * Service Bind or the ContentProvider
  *
  * @author liuzhongao
  * @since 2024/1/20 01:12

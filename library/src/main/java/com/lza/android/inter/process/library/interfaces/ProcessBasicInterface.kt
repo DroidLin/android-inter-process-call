@@ -10,14 +10,13 @@ import com.lza.android.inter.process.library.bridge.parameter.InvocationRequest
 import com.lza.android.inter.process.library.bridge.parameter.InvocationResponse
 import com.lza.android.inter.process.library.bridge.parameter.SuspendInvocationRequest
 import com.lza.android.inter.process.library.invokeSuspend
+import com.lza.android.inter.process.library.kotlin.OneShotContinuation
 import com.lza.android.inter.process.library.safeUnbox
 import java.lang.reflect.Method
 import kotlin.coroutines.Continuation
-import kotlin.coroutines.CoroutineContext
-import kotlin.coroutines.EmptyCoroutineContext
-import kotlin.coroutines.resume
-import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
+import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
+import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 /**
@@ -43,9 +42,6 @@ internal sealed interface ProcessBasicInterface {
 
     fun onReceiveBinder(processKey: String, basicInterface: ProcessBasicInterface) {}
 
-    /**
-     * 注册远端断连回调, 如果当前已经断开连接会立刻回调
-     */
     fun linkToDeath(deathRecipient: RemoteProcessCallInterface.DeathRecipient) {}
 
     fun unlinkToDeath(deathRecipient: RemoteProcessCallInterface.DeathRecipient) {}
@@ -126,10 +122,23 @@ internal sealed interface ProcessBasicInterface {
                 interfaceMethodName = method.name,
                 interfaceParameterTypes = method.parameterTypes.map { it.name },
                 interfaceParameters = args.toList(),
-                isSuspendFunction = false,
                 isKotlinFunction = true
             )
-            return this.remoteBridgeInterface.invoke(request = request)
+            return when (val response = this.remoteBridgeInterface.invoke(request = request)) {
+                // for synchronized invocation, throw the remote exception in current
+                // call stack is the best choice.
+                is InvocationResponse -> {
+                    if (response.throwable != null) {
+                        throw Throwable(response.throwable)
+                    }
+                    response.responseObject
+                }
+                // you may ask why don`t we handle InternalInvocationFailureResponse like
+                // what it is done in suspend remote invocation?
+                // we don`t care about internal failures in synchronized function call.
+                // use default backup logic instead.
+                else -> null
+            }
         }
 
         override suspend fun invokeSuspendRemoteProcessMethod(
@@ -142,6 +151,7 @@ internal sealed interface ProcessBasicInterface {
                 val deathRecipient = object : RemoteProcessCallInterface.DeathRecipient {
                     override fun binderDead() {
                         this@Proxy.unlinkToDeath(deathRecipient = this)
+                        // returns null to handle backup logic.
                         continuationProxy.resume(null)
                     }
                 }
@@ -160,12 +170,14 @@ internal sealed interface ProcessBasicInterface {
                     interfaceMethodName = method.name,
                     interfaceParameterTypes = parameterTypeExcludeContinuation,
                     interfaceParameters = parameterValueExcludeContinuation,
-                    isKotlinFunction = true,
                     remoteProcessSuspendCallback = suspendCallback
                 )
                 this.linkToDeath(deathRecipient = deathRecipient)
                 when (val response = this.remoteBridgeInterface.invoke(request = request)) {
+                    // while binder disconnected, try to suspend current function
+                    // to wait for [RemoteProcessCallInterface.DeathRecipient] invocation
                     is InternalInvocationFailureResponse -> COROUTINE_SUSPENDED
+                    // most common response instance from remote.
                     is InvocationResponse -> {
                         // should clear reference of deathRecipient to prevent memory leak.
                         this.unlinkToDeath(deathRecipient = deathRecipient)
@@ -176,24 +188,6 @@ internal sealed interface ProcessBasicInterface {
                     }
                     else -> throw UnsupportedOperationException("unSupported ResponseType: ${response?.javaClass}")
                 }
-            }
-        }
-    }
-
-    class OneShotContinuation<T>(
-        private val continuation: Continuation<T>,
-        private val coroutineContext: CoroutineContext = EmptyCoroutineContext
-    ) : Continuation<T> {
-
-        @Volatile
-        private var continuationResumed: Boolean = false
-
-        override val context: CoroutineContext get() = this.continuation.context + this.coroutineContext
-
-        override fun resumeWith(result: Result<T>) {
-            if (!this.continuationResumed) {
-                this.continuation.resumeWith(result)
-                this.continuationResumed = true
             }
         }
     }
