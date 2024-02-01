@@ -27,8 +27,8 @@ class ProcessInvocationHandle(
     private val currentProcessKey: String,
     private val destinationProcessKey: String,
     private val coroutineContext: CoroutineContext = EmptyCoroutineContext,
-    private val interfaceDefaultImpl: Any? = null,
     private val context: Context,
+    private val interfaceDefaultImpl: Any? = null,
 ) : InvocationHandler, IPCNoProguard {
 
     private val availableCoroutineContext: CoroutineContext
