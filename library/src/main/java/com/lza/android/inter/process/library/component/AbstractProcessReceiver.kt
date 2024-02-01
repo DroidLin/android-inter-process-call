@@ -14,9 +14,9 @@ import com.lza.android.inter.process.library.bridge.parameter.ConnectionContext
 abstract class AbstractProcessReceiver : BroadcastReceiver() {
 
     /**
-     * 当前broadcastReceiver所属的进程key
+     * key for current process where this component exist.
      */
-    abstract val broadcastRequireAction: String
+    protected abstract val broadcastRequireAction: String
 
     final override fun onReceive(context: Context?, intent: Intent?) {
         val action = intent?.action

@@ -6,9 +6,7 @@ import android.os.Parcelable
 import java.io.Serializable
 
 /**
- * 跨进程通讯的基础逻辑容器对象，每次调用的所有参数、返回值存储在[map]中
- *
- * 注意：非必要不修改该类结构！！！
+ * basic container object for inter process call.
  *
  * @author liuzhongao
  * @since 2024/1/8 23:20

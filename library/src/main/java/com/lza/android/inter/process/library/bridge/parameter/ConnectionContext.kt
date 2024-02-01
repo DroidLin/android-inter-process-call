@@ -8,11 +8,11 @@ import java.io.Serializable
  */
 data class ConnectionContext(
     /**
-     * 当前发起连接的key, 用以标记由谁发起
+     * process key for send connection process.
      */
     val selfKey: String,
     /**
-     * 当前需要连接的key, 用以标记和谁连接
+     * key for target process.
      */
     val destKey: String
 ) : Serializable {

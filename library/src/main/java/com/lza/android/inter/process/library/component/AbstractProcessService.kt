@@ -11,6 +11,9 @@ import com.lza.android.inter.process.library.bridge.parameter.ConnectionContext
  */
 abstract class AbstractProcessService : Service() {
 
+    /**
+     * key for current process where this component exist.
+     */
     protected abstract val currentProcessKey: String
 
     abstract fun onReceiveBinder(connectionContext: ConnectionContext)

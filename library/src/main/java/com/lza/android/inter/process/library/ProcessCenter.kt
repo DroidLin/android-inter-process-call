@@ -1,7 +1,7 @@
 package com.lza.android.inter.process.library
 
-import com.lza.android.inter.process.library.bridge.parameter.ProcessCallInitConfig
 import com.lza.android.inter.process.library.bridge.ProcessInvocationHandle
+import com.lza.android.inter.process.library.bridge.parameter.ProcessCallInitConfig
 import com.lza.android.inter.process.library.interfaces.IPCNoProguard
 import com.lza.android.inter.process.library.interfaces.IPCenter
 import java.lang.ref.WeakReference
@@ -17,7 +17,7 @@ import kotlin.coroutines.EmptyCoroutineContext
 object ProcessCenter : IPCenter {
 
     /**
-     * 同进程下相同interface对应的动态代理实现类对象尽量保持同一个
+     * make sure there is only one instance for remote call binder instance.
      */
     private val proxyInterfaceCache: MutableMap<Class<*>, WeakReference<Any>> = ConcurrentHashMap()
 

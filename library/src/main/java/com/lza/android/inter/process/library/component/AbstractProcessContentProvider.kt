@@ -14,6 +14,9 @@ import com.lza.android.inter.process.library.bridge.parameter.ConnectionContext
  */
 abstract class AbstractProcessContentProvider : ContentProvider() {
 
+    /**
+     * key for current process where this component exist.
+     */
     protected abstract val currentProcessKey: String
 
     override fun onCreate(): Boolean = true

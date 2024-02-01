@@ -55,7 +55,9 @@ class ProcessInvocationHandle(
         }
 
         val basicInterface = ProcessConnectionCenter[this@ProcessInvocationHandle.destinationProcessKey]
-        if (basicInterface == null || !basicInterface.isStillAlive) return this.onNonSuspendFunctionFailureOrReturnNull(declaringJvmClass, method, args)
+        if (basicInterface == null || !basicInterface.isStillAlive) {
+            return this.onNonSuspendFunctionFailureOrReturnNull(declaringJvmClass, method, args)
+        }
         return basicInterface.invokeRemoteProcessMethod(
             declaringClass = declaringJvmClass,
             method = method,

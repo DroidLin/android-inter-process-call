@@ -20,12 +20,6 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 /**
- * 一些和跨进程连接相关的一些调用会放置在此，
- * 连接时的双向通道打通等支持后续可扩展
- *
- * 这里进行封装的目的很简单，只是为了将[com.lza.android.library.bridge.parameter.Request]一层抹平,
- * 让后续的开发者不需要在关注这部分内容，直接面向已有的、新增的接口开发，减少出bug的次数
- *
  * @author liuzhongao
  * @since 2024/1/20 17:14
  */
@@ -36,6 +30,15 @@ internal val ProcessBasicInterface.bridgeInterface: RemoteProcessCallInterface
         else -> throw IllegalArgumentException("unknown basic interface type: ${this.javaClass.name}")
     }
 
+/**
+ * all inter process communication happens through this interface.
+ *
+ * [ProcessBasicInterface.invokeRemoteProcessMethod] and [ProcessBasicInterface.invokeSuspendRemoteProcessMethod] two
+ * receive function call parameters, returns result from remote process implementation.
+ *
+ * these two remote call will throw remote exceptions while catch internal binder exceptions,
+ * will provide internal/external exception handler in the following release.
+ */
 internal sealed interface ProcessBasicInterface {
 
     val isStillAlive: Boolean
