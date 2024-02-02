@@ -197,7 +197,6 @@ class ProcessInvocationHandle(
     private inline fun <T : Any> runWithExceptionHandle(block: () -> T?): T? {
         val result = runCatching(block)
         val throwable = result.exceptionOrNull()
-        throwable?.printStackTrace()
         if (result.isFailure && throwable != null) {
             if (this.isExceptionHandled(throwable)) {
                 return null

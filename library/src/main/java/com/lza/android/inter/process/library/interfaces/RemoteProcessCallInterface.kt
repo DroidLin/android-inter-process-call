@@ -89,13 +89,17 @@ sealed interface RemoteProcessCallInterface {
         }
 
         override fun invoke(request: Request): Response? {
-            val bridgeParameter = BridgeParameter()
+            val bridgeParameter = BridgeParameter.obtain()
             bridgeParameter.request = request
             // Todo: 日志收集
             kotlin.runCatching { this.binderInterface.invoke(bridgeParameter) }
                 .onFailure { it.printStackTrace() }
                 .onFailure { bridgeParameter.response = InternalInvocationFailureResponse(null, it) }
-            return bridgeParameter.response
+            return try {
+                bridgeParameter.response
+            } finally {
+                bridgeParameter.recycle()
+            }
         }
 
         override fun linkToDeath(deathRecipient: DeathRecipient) {
