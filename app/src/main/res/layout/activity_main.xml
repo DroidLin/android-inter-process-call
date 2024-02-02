@@ -61,4 +61,16 @@
         android:layout_height="wrap_content"
         android:text="Suspend Function Call No Return" />
 
+    <Button
+        android:id="@+id/btn_interface_normal_function_throwable"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Function Call Throwable" />
+
+    <Button
+        android:id="@+id/btn_interface_suspend_function_throwable"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Suspend Function Call Throwable" />
+
 </LinearLayout>

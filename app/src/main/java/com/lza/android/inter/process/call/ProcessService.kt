@@ -29,4 +29,8 @@ interface ProcessService : IPCNoProguard {
     fun testFunctionNoReturn() {}
 
     suspend fun suspendTestFunctionNoReturn() {}
+
+    fun testThrowable() { throw NullPointerException() }
+
+    suspend fun suspendTestThrowable() { throw NullPointerException() }
 }

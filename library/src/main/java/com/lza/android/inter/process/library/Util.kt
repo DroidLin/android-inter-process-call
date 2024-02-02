@@ -1,5 +1,7 @@
 package com.lza.android.inter.process.library
 
+import com.lza.android.inter.process.library.interfaces.IPCNoProguard
+import com.lza.android.inter.process.library.interfaces.IPCenter
 import java.lang.reflect.Method
 import kotlin.coroutines.Continuation
 import kotlin.reflect.KCallable
@@ -72,4 +74,8 @@ internal fun Any?.safeUnbox(): Any? {
         return null
     }
     return this
+}
+
+inline fun <reified T : IPCNoProguard> IPCenter.create(destinationProcessKey: String): T {
+    return this.getService(destinationProcessKey, T::class.java)
 }

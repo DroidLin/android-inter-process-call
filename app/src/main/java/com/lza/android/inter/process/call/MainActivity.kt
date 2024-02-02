@@ -11,6 +11,9 @@ import com.lza.android.inter.process.library.ProcessCenter
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
+
+    private val processService = ProcessCenter.getService(ProcessConst.KEY_MAIN_PROCESS, ProcessService::class.java, LibraryProcessServiceImpl, exceptionHandler = { true })
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -83,12 +86,27 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        findViewById<View>(R.id.btn_interface_normal_function_throwable).setOnClickProcessInterfaceListener { view ->
+            val startTimeStamp = SystemClock.elapsedRealtimeNanos()
+            val remoteResult = this.testThrowable()
+            Log.i("MainActivity", "testThrowable: ${remoteResult}")
+            Log.i("MainActivity", "remote call cost: ${(SystemClock.elapsedRealtimeNanos() - startTimeStamp) / 1_000_000L}ms")
+        }
+
+        findViewById<View>(R.id.btn_interface_suspend_function_throwable).setOnClickProcessInterfaceListener { view ->
+            this@MainActivity.lifecycleScope.launch {
+                val startTimeStamp = SystemClock.elapsedRealtimeNanos()
+                val remoteResult = this@setOnClickProcessInterfaceListener.suspendTestThrowable()
+                Log.i("MainActivity", "suspendTestThrowable: ${remoteResult}")
+                Log.i("MainActivity", "remote call cost: ${(SystemClock.elapsedRealtimeNanos() - startTimeStamp) / 1_000_000L}ms")
+            }
+        }
+
     }
 
     private inline fun View.setOnClickProcessInterfaceListener(crossinline onClick: ProcessService.(View) -> Unit) {
-        val processService = ProcessCenter.getService(ProcessConst.KEY_MAIN_PROCESS, ProcessService::class.java, LibraryProcessServiceImpl)
         this.setOnClickListener { view ->
-            processService.onClick(view)
+            this@MainActivity.processService.onClick(view)
         }
     }
 }
