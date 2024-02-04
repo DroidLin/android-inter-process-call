@@ -1,5 +1,9 @@
 pluginManagement {
     repositories {
+        maven {
+            url = uri("${rootProject.projectDir}/repo")
+            println(url)
+        }
         google()
         mavenCentral()
         gradlePluginPortal()
@@ -8,6 +12,10 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+        maven {
+            url = uri("${rootProject.projectDir}/repo")
+            println(url)
+        }
         google()
         mavenCentral()
         maven { url = uri("https://jitpack.io") }
@@ -19,3 +27,4 @@ include(":app")
 include(":library")
 include(":compiler")
 include(":annotation")
+include(":transform-plugin")

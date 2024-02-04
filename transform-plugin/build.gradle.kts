@@ -1,5 +1,3 @@
-import org.jetbrains.kotlin.fir.declarations.builder.buildTypeAlias
-
 plugins {
     id("java-library")
     id("org.jetbrains.kotlin.jvm")
@@ -15,15 +13,16 @@ java {
 }
 
 dependencies {
-    implementation("com.google.devtools.ksp:symbol-processing-api:1.9.22-1.0.17")
-    implementation(project(":annotation"))
+    implementation(gradleApi())
+    implementation(localGroovy())
+    implementation("com.android.tools.build:gradle:8.2.1")
 }
 
 publishing {
     publications {
         register<MavenPublication>("java") {
             groupId = "com.github.DroidLin"
-            artifactId = "android-inter-process-call-compiler"
+            artifactId = "android-inter-process-transform-plugin"
             version = "1.0.0"
 
             afterEvaluate {

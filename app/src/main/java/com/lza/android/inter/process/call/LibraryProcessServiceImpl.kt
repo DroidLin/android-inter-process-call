@@ -6,7 +6,7 @@ import com.lza.android.inter.process.annotation.RemoteProcessInterface
  * @author liuzhongao
  * @since 2024/1/14 23:42
  */
-@RemoteProcessInterface(clazz = ProcessService::class)
+@RemoteProcessInterface(interfaceClass = ProcessService::class)
 object LibraryProcessServiceImpl : ProcessService {
 
     override val processName: String get() = "LibraryProcess"

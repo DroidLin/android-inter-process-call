@@ -5,13 +5,16 @@ import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.processing.SymbolProcessor
 import com.google.devtools.ksp.processing.SymbolProcessorEnvironment
 import com.google.devtools.ksp.processing.SymbolProcessorProvider
+import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSAnnotated
-import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFile
+import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSVisitorVoid
 import com.google.devtools.ksp.validate
 import com.lza.android.inter.process.annotation.RemoteProcessInterface
+import java.io.Writer
+import kotlin.math.abs
 
 /**
  * @author liuzhongao
@@ -23,51 +26,92 @@ class InterProcessSymbolProcessProvider : SymbolProcessorProvider {
         return object : SymbolProcessor {
             override fun process(resolver: Resolver): List<KSAnnotated> {
                 var ksFile: KSFile? = null
-                val referenceClasses: MutableList<String> = ArrayList()
+                var packageName: String? = null
+                val referenceClasses: MutableList<RemoteProcessInterfaceModel> = ArrayList()
                 val visitor = object : KSVisitorVoid() {
 
-                    override fun visitAnnotation(annotation: KSAnnotation, data: Unit) {
-                    }
-
-                    override fun visitClassDeclaration(classDeclaration: KSClassDeclaration, data: Unit) {
+                    override fun visitClassDeclaration(
+                        classDeclaration: KSClassDeclaration,
+                        data: Unit
+                    ) {
                         if (ksFile == null) {
                             ksFile = classDeclaration.containingFile
                         }
-                        referenceClasses += "\n"
-                        referenceClasses += (classDeclaration.qualifiedName?.asString() ?: "")
+                        if (packageName.isNullOrEmpty()) {
+                            packageName = classDeclaration.packageName.asString()
+                        }
                         classDeclaration.annotations.forEach { annotation ->
-                            referenceClasses += annotation.shortName.asString()
-                            annotation.arguments.forEach { annotationArguments ->
-                                referenceClasses += annotationArguments.value?.javaClass?.name ?: ""
-                                referenceClasses += annotationArguments.value?.toString() ?: ""
+                            val interfaceFullClassName =
+                                annotation.arguments.find { it.name?.asString() == "interfaceClass" }?.value?.let { it as? KSType }?.declaration?.qualifiedName
+                            val selfFullClassName = classDeclaration.qualifiedName
+                            if (interfaceFullClassName != null && selfFullClassName != null) {
+                                referenceClasses += RemoteProcessInterfaceModel(
+                                    interfaceClassName = interfaceFullClassName,
+                                    selfImplementationClassName = selfFullClassName
+                                )
                             }
                         }
                     }
                 }
-                val returnList = resolver.getSymbolsWithAnnotation(remoteProcessInterfaceFullName).toList()
-                    .onEach { if (it.validate()) it.accept(visitor, Unit) }.filter { !it.validate() }
-                if (ksFile != null && referenceClasses.isNotEmpty()) {
+                val returnList =
+                    resolver.getSymbolsWithAnnotation(remoteProcessInterfaceFullName).toList()
+                returnList.filter { it.validate() }
+                    .onEach { it.accept(visitor, Unit) }
+                if (ksFile != null && packageName != null && referenceClasses.isNotEmpty()) {
+                    val processCenterName =
+                        resolver.getKSNameFromString("com.lza.android.inter.process.library.ProcessCenter")
+                    val fileName =
+                        "RemoteProcessMapping_${abs(referenceClasses.hashCode())}_Generated"
                     environment.codeGenerator.createNewFile(
                         dependencies = Dependencies(
                             aggregating = true,
                             sources = arrayOf(requireNotNull(ksFile))
-                        ), "com.lza.android.inter.process", "TestFile_Generated"
+                        ), requireNotNull(packageName), fileName
                     ).writer().use { newGeneratedFile ->
-                        newGeneratedFile.write("package com.lza.android.inter.process\n\n")
-                        newGeneratedFile.write("/*")
-                        referenceClasses.forEach { classNames ->
-                            newGeneratedFile.write(classNames)
-                            newGeneratedFile.write("\n")
+                        newGeneratedFile.buildPackage(requireNotNull(packageName)) {
+                            buildClass(className = fileName) {
+                                write(
+                                    StringBuilder()
+                                        .appendLine("\tcompanion object {")
+                                        .appendLine("\t\t@JvmStatic")
+                                        .appendLine("\t\tfun collectService() {")
+                                        .apply {
+                                            referenceClasses.forEach { model ->
+                                                val classDeclaration =
+                                                    requireNotNull(resolver.getClassDeclarationByName(model.selfImplementationClassName))
+                                                val implementationName =
+                                                    if (classDeclaration.classKind == ClassKind.OBJECT) {
+                                                        model.selfImplementationClassName.getShortName()
+                                                    } else "${model.selfImplementationClassName.asString()}()"
+                                                appendLine("\t\t\t${processCenterName.asString()}.putService(${model.interfaceClassName.getShortName()}::class.java, ${implementationName})")
+                                            }
+                                        }
+                                        .appendLine("\t\t}")
+                                        .appendLine("\t}")
+                                        .toString()
+                                )
+                            }
                         }
-                        newGeneratedFile.write("*/")
                         newGeneratedFile.flush()
                         newGeneratedFile.close()
                     }
                 }
 
-                return returnList
+                return returnList.filter { !it.validate() }
             }
         }
+    }
+
+    private inline fun Writer.buildPackage(packageName: String, content: Writer.() -> Unit) {
+        write("package ${packageName}\n")
+        write("\n")
+        content()
+    }
+
+    private inline fun Writer.buildClass(className: String, content: Writer.() -> Unit) {
+        write("class $className {\n")
+        content()
+        write("}")
     }
 
     companion object {
