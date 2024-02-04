@@ -2,12 +2,16 @@ package com.lza.android.inter.process.library.bridge
 
 import android.content.Context
 import com.lza.android.inter.process.library.ProcessConnectionCenter
+import com.lza.android.inter.process.library.interfaces.ExceptionHandler
 import com.lza.android.inter.process.library.interfaces.IPCNoProguard
 import com.lza.android.inter.process.library.isSuspendFunction
 import com.lza.android.inter.process.library.kotlin.OneShotContinuation
+import com.lza.android.inter.process.library.kotlin.UnHandledRuntimeException
 import com.lza.android.inter.process.library.match
 import com.lza.android.inter.process.library.unSupportedReturnType
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
@@ -29,12 +33,20 @@ class ProcessInvocationHandle(
     private val destinationProcessKey: String,
     private val coroutineContext: CoroutineContext = EmptyCoroutineContext,
     private val interfaceDefaultImpl: Any? = null,
+    private val exceptionHandler: ExceptionHandler? = null
 ) : InvocationHandler, IPCNoProguard {
 
-    private val availableCoroutineContext: CoroutineContext
-        get() = if (this.coroutineContext == EmptyCoroutineContext) {
-            Dispatchers.Default
-        } else this.coroutineContext
+    private val coroutineExceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        if (!this.isExceptionHandled(throwable = throwable)) {
+            throw UnHandledRuntimeException(throwable)
+        }
+    }
+
+    private val availableCoroutineContext: CoroutineContext by lazy {
+        if (this.coroutineContext == EmptyCoroutineContext) {
+            (Dispatchers.Default + SupervisorJob() + this.coroutineExceptionHandler)
+        } else (this.coroutineContext + this.coroutineExceptionHandler)
+    }
 
     override fun invoke(proxy: Any, method: Method, args: Array<Any?>?): Any? {
         return if (method.isSuspendFunction) {
@@ -58,11 +70,13 @@ class ProcessInvocationHandle(
         if (basicInterface == null || !basicInterface.isStillAlive) {
             return this.onNonSuspendFunctionFailureOrReturnNull(declaringJvmClass, method, args)
         }
-        return basicInterface.invokeRemoteProcessMethod(
-            declaringClass = declaringJvmClass,
-            method = method,
-            args = args
-        ) ?: this.onNonSuspendFunctionFailureOrReturnNull(declaringJvmClass, method, args)
+        return runWithExceptionHandle {
+            basicInterface.invokeRemoteProcessMethod(
+                declaringClass = declaringJvmClass,
+                method = method,
+                args = args
+            )
+        } ?: this.onNonSuspendFunctionFailureOrReturnNull(declaringJvmClass, method, args)
     }
 
     private fun onNonSuspendFunctionFailureOrReturnNull(
@@ -82,7 +96,12 @@ class ProcessInvocationHandle(
         }
         if (this@ProcessInvocationHandle.interfaceDefaultImpl != null) {
             // no need try/catch, export exceptions to outside caller.
-            return method.invoke(this@ProcessInvocationHandle.interfaceDefaultImpl, *args)
+            val fallbackData = runWithExceptionHandle {
+                method.invoke(this@ProcessInvocationHandle.interfaceDefaultImpl, *args)
+            }
+            if (fallbackData != null) {
+                return fallbackData
+            }
         }
         throw IllegalArgumentException(
             "function return type requires non-null type, " +
@@ -120,11 +139,13 @@ class ProcessInvocationHandle(
             return this.onSuspendFunctionFailureOrReturnNull(declaringJvmClass, method, args)
         }
 
-        return basicInterface.invokeSuspendRemoteProcessMethod(
-            declaringClass = declaringJvmClass,
-            method = method,
-            args = args
-        ) ?: this.onSuspendFunctionFailureOrReturnNull(declaringJvmClass, method, args)
+        return runWithExceptionHandle {
+            basicInterface.invokeSuspendRemoteProcessMethod(
+                declaringClass = declaringJvmClass,
+                method = method,
+                args = args
+            )
+        } ?: this.onSuspendFunctionFailureOrReturnNull(declaringJvmClass, method, args)
     }
 
     private suspend fun onSuspendFunctionFailureOrReturnNull(
@@ -162,6 +183,27 @@ class ProcessInvocationHandle(
                 destKey = this.destinationProcessKey,
             )
         } else true
+    }
+
+    private inline fun <T : Any> runWithExceptionHandle(block: () -> T?): T? {
+        val result = runCatching(block)
+        val throwable = result.exceptionOrNull()
+        if (result.isFailure && throwable != null) {
+            if (this.isExceptionHandled(throwable)) {
+                return null
+            }
+            throw UnHandledRuntimeException(throwable)
+        }
+        val data = result.getOrNull()
+        if (data != null) {
+            return data
+        }
+        return null
+    }
+
+    private fun isExceptionHandled(throwable: Throwable?): Boolean {
+        throwable ?: return true
+        return this.exceptionHandler?.handleException(throwable = null) ?: false
     }
 
     companion object {

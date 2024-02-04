@@ -12,6 +12,8 @@ interface IPCenter {
 
     fun init(initConfig: ProcessCallInitConfig)
 
+    fun setRootExceptionHandler(exceptionHandler: ExceptionHandler)
+
     fun <T : IPCNoProguard> putService(clazz: Class<T>, impl: T?)
 
     fun <T : IPCNoProguard> getService(
@@ -25,6 +27,13 @@ interface IPCenter {
         defaultImpl: T? = null,
     ): T
 
+    fun <T : IPCNoProguard> getService(
+        destProcessKey: String,
+        clazz: Class<T>,
+        defaultImpl: T? = null,
+        coroutineContext: CoroutineContext = EmptyCoroutineContext,
+    ): T
+
     /**
      * @param defaultImpl call on remote process call failure
      */
@@ -32,6 +41,7 @@ interface IPCenter {
         destProcessKey: String,
         clazz: Class<T>,
         defaultImpl: T? = null,
-        coroutineContext: CoroutineContext = EmptyCoroutineContext
+        coroutineContext: CoroutineContext = EmptyCoroutineContext,
+        exceptionHandler: ExceptionHandler? = null
     ): T
 }
