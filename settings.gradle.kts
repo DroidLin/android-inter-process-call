@@ -17,3 +17,5 @@ dependencyResolutionManagement {
 rootProject.name = "android-inter-process-call"
 include(":app")
 include(":library")
+include(":compiler")
+include(":annotation")

@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("com.google.devtools.ksp")
 }
 
 android {
@@ -22,7 +23,6 @@ android {
             keyPassword = "liuzhongao0325"
             storeFile = File("${project.projectDir.absolutePath + File.separator}DoorPlayerKey.jks")
             storePassword = "liuzhongao0325"
-            println(storeFile?.absolutePath)
         }
     }
     buildTypes {
@@ -47,6 +47,14 @@ android {
     kotlinOptions {
         jvmTarget = "1.8"
     }
+    kotlin {
+        sourceSets.main {
+            kotlin.srcDir("build${File.separator}generated${File.separator}ksp${File.separator}main${File.separator}kotlin")
+        }
+        sourceSets.test {
+            kotlin.srcDir("build${File.separator}generated${File.separator}ksp${File.separator}test${File.separator}kotlin")
+        }
+    }
 }
 
 dependencies {
@@ -59,4 +67,7 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
     implementation(kotlin("reflect"))
+
+    implementation(project(":annotation"))
+    ksp(project(":compiler"))
 }
