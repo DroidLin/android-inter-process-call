@@ -13,10 +13,8 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
-import java.lang.ref.WeakReference
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
-import java.util.LinkedList
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
@@ -34,10 +32,9 @@ class ProcessInvocationHandle(
     private val currentProcessKey: String,
     private val destinationProcessKey: String,
     private val coroutineContext: CoroutineContext = EmptyCoroutineContext,
-    private val interfaceDefaultImpl: Any? = null
+    private val interfaceDefaultImpl: Any? = null,
+    private val exceptionHandler: ExceptionHandler? = null
 ) : InvocationHandler, IPCNoProguard {
-
-    private val exceptionHandlerReferenceQueue = LinkedList<WeakReference<ExceptionHandler>>()
 
     private val coroutineExceptionHandler = CoroutineExceptionHandler { _, throwable ->
         if (!this.isExceptionHandled(throwable = throwable)) {
@@ -49,12 +46,6 @@ class ProcessInvocationHandle(
         if (this.coroutineContext == EmptyCoroutineContext) {
             (Dispatchers.Default + SupervisorJob() + this.coroutineExceptionHandler)
         } else (this.coroutineContext + this.coroutineExceptionHandler)
-    }
-
-    fun putExceptionHandler(exceptionHandler: ExceptionHandler) {
-        synchronized(this.exceptionHandlerReferenceQueue) {
-            this.exceptionHandlerReferenceQueue.add(0, WeakReference(exceptionHandler))
-        }
     }
 
     override fun invoke(proxy: Any, method: Method, args: Array<Any?>?): Any? {
@@ -197,7 +188,6 @@ class ProcessInvocationHandle(
     private inline fun <T : Any> runWithExceptionHandle(block: () -> T?): T? {
         val result = runCatching(block)
         val throwable = result.exceptionOrNull()
-        throwable?.printStackTrace()
         if (result.isFailure && throwable != null) {
             if (this.isExceptionHandled(throwable)) {
                 return null
@@ -213,20 +203,7 @@ class ProcessInvocationHandle(
 
     private fun isExceptionHandled(throwable: Throwable?): Boolean {
         throwable ?: return true
-        synchronized(this.exceptionHandlerReferenceQueue) {
-            val exceptionHandlerListIterator = this.exceptionHandlerReferenceQueue.iterator()
-            while (exceptionHandlerListIterator.hasNext()) {
-                val exceptionHandler = exceptionHandlerListIterator.next().get()
-                if (exceptionHandler == null) {
-                    exceptionHandlerListIterator.remove()
-                    continue
-                }
-                if (exceptionHandler.handleException(throwable)) {
-                    return true
-                }
-            }
-        }
-        return false
+        return this.exceptionHandler?.handleException(throwable = null) ?: false
     }
 
     companion object {
