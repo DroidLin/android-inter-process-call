@@ -13,7 +13,6 @@ import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSVisitorVoid
 import com.google.devtools.ksp.validate
 import com.lza.android.inter.process.annotation.RemoteProcessInterface
-import java.io.Writer
 import kotlin.math.abs
 
 /**
@@ -68,29 +67,31 @@ class InterProcessSymbolProcessProvider : SymbolProcessorProvider {
                             sources = arrayOf(requireNotNull(ksFile))
                         ), requireNotNull(packageName), fileName
                     ).writer().use { newGeneratedFile ->
-                        newGeneratedFile.buildPackage(requireNotNull(packageName)) {
-                            buildClass(className = fileName) {
-                                write(
-                                    StringBuilder()
-                                        .appendLine("\tcompanion object {")
-                                        .appendLine("\t\t@JvmStatic")
-                                        .appendLine("\t\tfun collectService() {")
-                                        .apply {
-                                            referenceClasses.forEach { model ->
-                                                val classDeclaration =
-                                                    requireNotNull(resolver.getClassDeclarationByName(model.selfImplementationClassName))
-                                                val implementationName =
-                                                    if (classDeclaration.classKind == ClassKind.OBJECT) {
-                                                        model.selfImplementationClassName.getShortName()
-                                                    } else "${model.selfImplementationClassName.asString()}()"
-                                                appendLine("\t\t\t${processCenterName.asString()}.putService(${model.interfaceClassName.getShortName()}::class.java, ${implementationName})")
-                                            }
+                        newGeneratedFile.run {
+                            write("package ${packageName}\n")
+                            write("\n")
+                            write("class $fileName : com.lza.android.inter.process.library.interfaces.IPCNoProguard {\n")
+                            write(
+                                StringBuilder()
+                                    .appendLine("\tcompanion object {")
+                                    .appendLine("\t\t@JvmStatic")
+                                    .appendLine("\t\tfun collectService() {")
+                                    .apply {
+                                        referenceClasses.forEach { model ->
+                                            val classDeclaration =
+                                                requireNotNull(resolver.getClassDeclarationByName(model.selfImplementationClassName))
+                                            val implementationName =
+                                                if (classDeclaration.classKind == ClassKind.OBJECT) {
+                                                    model.selfImplementationClassName.asString()
+                                                } else "${model.selfImplementationClassName.asString()}()"
+                                            appendLine("\t\t\t${processCenterName.asString()}.putService(${model.interfaceClassName.asString()}::class.java, ${implementationName})")
                                         }
-                                        .appendLine("\t\t}")
-                                        .appendLine("\t}")
-                                        .toString()
-                                )
-                            }
+                                    }
+                                    .appendLine("\t\t}")
+                                    .appendLine("\t}")
+                                    .toString()
+                            )
+                            write("}")
                         }
                         newGeneratedFile.flush()
                         newGeneratedFile.close()
@@ -100,18 +101,6 @@ class InterProcessSymbolProcessProvider : SymbolProcessorProvider {
                 return returnList.filter { !it.validate() }
             }
         }
-    }
-
-    private inline fun Writer.buildPackage(packageName: String, content: Writer.() -> Unit) {
-        write("package ${packageName}\n")
-        write("\n")
-        content()
-    }
-
-    private inline fun Writer.buildClass(className: String, content: Writer.() -> Unit) {
-        write("class $className {\n")
-        content()
-        write("}")
     }
 
     companion object {

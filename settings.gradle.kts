@@ -2,7 +2,6 @@ pluginManagement {
     repositories {
         maven {
             url = uri("${rootProject.projectDir}/repo")
-            println(url)
         }
         google()
         mavenCentral()
@@ -14,7 +13,6 @@ dependencyResolutionManagement {
     repositories {
         maven {
             url = uri("${rootProject.projectDir}/repo")
-            println(url)
         }
         google()
         mavenCentral()

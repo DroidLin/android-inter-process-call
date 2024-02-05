@@ -9,6 +9,6 @@ plugins {
 
 buildscript {
     dependencies {
-        classpath("com.github.DroidLin:android-inter-process-transform-plugin:1.0.0")
+//        classpath("com.github.DroidLin:android-inter-process-transform-plugin:1.0.0")
     }
 }

@@ -1,4 +1,5 @@
 plugins {
+    `java-gradle-plugin`
     id("java-library")
     id("org.jetbrains.kotlin.jvm")
     id("maven-publish")
@@ -15,7 +16,18 @@ java {
 dependencies {
     implementation(gradleApi())
     implementation(localGroovy())
+    implementation(gradleKotlinDsl())
     implementation("com.android.tools.build:gradle:8.2.1")
+    implementation("com.android.tools.build:gradle-api:8.2.1")
+}
+
+gradlePlugin {
+    plugins {
+        create("interProcessTransformPlugin") {
+            id = "InterProcessTransform"
+            implementationClass = "com.lza.android.inter.process.transform.plugin.InterProcessPlugin"
+        }
+    }
 }
 
 publishing {
