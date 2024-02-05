@@ -13,7 +13,6 @@ import com.lza.android.inter.process.library.invokeSuspend
 import com.lza.android.inter.process.library.kotlin.OneShotContinuation
 import com.lza.android.inter.process.library.safeUnbox
 import java.lang.reflect.Method
-import kotlin.coroutines.Continuation
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
 import kotlin.coroutines.resume
@@ -128,7 +127,7 @@ internal sealed interface ProcessBasicInterface {
             val request = InvocationRequest(
                 interfaceClassName = declaringClass.name,
                 interfaceMethodName = method.name,
-                interfaceParameterTypes = method.parameterTypes.map { it.name },
+                interfaceParameterTypes = argTypes.map { it.name },
                 interfaceParameters = args.toList(),
                 isKotlinFunction = true
             )
@@ -172,13 +171,11 @@ internal sealed interface ProcessBasicInterface {
                         } else continuationProxy.resume(data)
                     }
                 }
-                val parameterTypeExcludeContinuation = argTypes.filter { it != Continuation::class.java }.map { it.name }
-                val parameterValueExcludeContinuation = args.filter { it !is Continuation<*> }
                 val request = SuspendInvocationRequest(
                     interfaceClassName = declaringClass.name,
                     interfaceMethodName = method.name,
-                    interfaceParameterTypes = parameterTypeExcludeContinuation,
-                    interfaceParameters = parameterValueExcludeContinuation,
+                    interfaceParameterTypes = argTypes.map { it.name },
+                    interfaceParameters = args.toList(),
                     remoteProcessSuspendCallback = suspendCallback
                 )
                 this.linkToDeath(deathRecipient = deathRecipient)
