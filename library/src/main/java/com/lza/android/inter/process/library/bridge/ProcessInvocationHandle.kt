@@ -118,16 +118,18 @@ class ProcessInvocationHandle(
     ): Any? {
         val continuation = args.filterIsInstance<Continuation<*>>().firstOrNull() as? Continuation<Any?>
             ?: throw IllegalArgumentException("no Continuation parameter find in argument!!")
+        val parameterTypeWithoutContinuation = method.parameterTypes.filter { it != Continuation::class.java }.toTypedArray()
         val parameterWithoutContinuation = args.filter { it !is Continuation<*> }.toTypedArray()
         val continuationProxy = OneShotContinuation(continuation)
         return this::suspendInvokeKotlinFunction
             .apply { isAccessible = true }
-            .call(declaringJvmClass, method, parameterWithoutContinuation, continuationProxy)
+            .call(declaringJvmClass, method, parameterTypeWithoutContinuation, parameterWithoutContinuation, continuationProxy)
     }
 
     private suspend fun suspendInvokeKotlinFunction(
         declaringJvmClass: Class<*>,
         method: Method,
+        argTypes: Array<Class<*>>,
         args: Array<Any?>
     ): Any? {
         val tryConnectResult = this.ensureBinderConnectionEstablished()
@@ -144,7 +146,7 @@ class ProcessInvocationHandle(
             basicInterface.invokeSuspendRemoteProcessMethod(
                 declaringClass = declaringJvmClass,
                 method = method,
-                argTypes = method.parameterTypes ?: emptyArray(),
+                argTypes = argTypes,
                 args = args
             )
         } ?: this.onSuspendFunctionFailureOrReturnNull(declaringJvmClass, method, args)
