@@ -73,7 +73,7 @@ class ProcessInvocationHandle(
         return runWithExceptionHandle {
             basicInterface.invokeRemoteProcessMethod(
                 declaringClass = declaringJvmClass,
-                method = method,
+                methodName = method.name,
                 argTypes = method.parameterTypes ?: emptyArray(),
                 args = args
             )
@@ -145,7 +145,7 @@ class ProcessInvocationHandle(
         return runWithExceptionHandle {
             basicInterface.invokeSuspendRemoteProcessMethod(
                 declaringClass = declaringJvmClass,
-                method = method,
+                methodName = method.name,
                 argTypes = argTypes,
                 args = args
             )

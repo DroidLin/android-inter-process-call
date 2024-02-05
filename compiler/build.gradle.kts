@@ -1,5 +1,3 @@
-import org.jetbrains.kotlin.fir.declarations.builder.buildTypeAlias
-
 plugins {
     id("java-library")
     id("org.jetbrains.kotlin.jvm")
@@ -16,6 +14,8 @@ java {
 
 dependencies {
     implementation("com.google.devtools.ksp:symbol-processing-api:1.9.22-1.0.17")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.6.4")
+//    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4")
     implementation(project(":annotation"))
 }
 

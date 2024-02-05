@@ -1,12 +1,9 @@
 package com.lza.android.inter.process.call
 
-import com.lza.android.inter.process.annotation.RemoteProcessInterface
-
 /**
  * @author liuzhongao
  * @since 2024/1/14 23:42
  */
-@RemoteProcessInterface(interfaceClass = ProcessService::class)
 object MainProcessServiceImpl : ProcessService {
 
     override val processName: String get() = "MainProcess"

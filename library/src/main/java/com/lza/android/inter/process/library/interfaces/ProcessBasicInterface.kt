@@ -12,7 +12,6 @@ import com.lza.android.inter.process.library.bridge.parameter.SuspendInvocationR
 import com.lza.android.inter.process.library.invokeSuspend
 import com.lza.android.inter.process.library.kotlin.OneShotContinuation
 import com.lza.android.inter.process.library.safeUnbox
-import java.lang.reflect.Method
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
 import kotlin.coroutines.resume
@@ -50,14 +49,14 @@ internal sealed interface ProcessBasicInterface {
 
     fun invokeRemoteProcessMethod(
         declaringClass: Class<*>,
-        method: Method,
+        methodName: String,
         argTypes: Array<Class<*>>,
         args: Array<Any?>,
     ): Any? = null
 
     suspend fun invokeSuspendRemoteProcessMethod(
         declaringClass: Class<*>,
-        method: Method,
+        methodName: String,
         argTypes: Array<Class<*>>,
         args: Array<Any?>,
     ): Any? = null
@@ -79,27 +78,29 @@ internal sealed interface ProcessBasicInterface {
             this.bridgeInterface += handShakeBridgeInterceptor { processKey, basicInterface ->
                 this.onReceiveBinder(processKey, basicInterface)
             }
-            this.bridgeInterface += remoteProcessCallInterceptor { clazz, method, argTypes, args ->
-                this.invokeRemoteProcessMethod(declaringClass = clazz, method = method, argTypes = argTypes, args = args)
+            this.bridgeInterface += remoteProcessCallInterceptor { clazz, methodName, argTypes, args ->
+                this.invokeRemoteProcessMethod(declaringClass = clazz, methodName = methodName, argTypes = argTypes, args = args)
             }
-            this.bridgeInterface += suspendRemoteProcessCallInterceptor { clazz, method, argTypes, args ->
-                this.invokeSuspendRemoteProcessMethod(declaringClass = clazz, method = method, argTypes = argTypes, args = args)
+            this.bridgeInterface += suspendRemoteProcessCallInterceptor { clazz, methodName, argTypes, args ->
+                this.invokeSuspendRemoteProcessMethod(declaringClass = clazz, methodName = methodName, argTypes = argTypes, args = args)
             }
         }
 
         override fun invokeRemoteProcessMethod(
             declaringClass: Class<*>,
-            method: Method,
+            methodName: String,
             argTypes: Array<Class<*>>,
             args: Array<Any?>
-        ): Any? = method.invoke(ProcessImplementationCenter[declaringClass], *args).safeUnbox()
+        ): Any? = declaringClass.getDeclaredMethod(methodName, *argTypes)
+            .invoke(ProcessImplementationCenter[declaringClass], *args).safeUnbox()
 
         override suspend fun invokeSuspendRemoteProcessMethod(
             declaringClass: Class<*>,
-            method: Method,
+            methodName: String,
             argTypes: Array<Class<*>>,
             args: Array<Any?>
-        ): Any? = method.invokeSuspend(ProcessImplementationCenter[declaringClass], *args).safeUnbox()
+        ): Any? = declaringClass.getDeclaredMethod(methodName, *argTypes)
+            .invokeSuspend(ProcessImplementationCenter[declaringClass], *args).safeUnbox()
     }
 
     class Proxy(val remoteBridgeInterface: RemoteProcessCallInterface) : ProcessBasicInterface {
@@ -120,13 +121,13 @@ internal sealed interface ProcessBasicInterface {
 
         override fun invokeRemoteProcessMethod(
             declaringClass: Class<*>,
-            method: Method,
+            methodName: String,
             argTypes: Array<Class<*>>,
             args: Array<Any?>
         ): Any? {
             val request = InvocationRequest(
                 interfaceClassName = declaringClass.name,
-                interfaceMethodName = method.name,
+                interfaceMethodName = methodName,
                 interfaceParameterTypes = argTypes.map { it.name },
                 interfaceParameters = args.toList(),
                 isKotlinFunction = true
@@ -150,7 +151,7 @@ internal sealed interface ProcessBasicInterface {
 
         override suspend fun invokeSuspendRemoteProcessMethod(
             declaringClass: Class<*>,
-            method: Method,
+            methodName: String,
             argTypes: Array<Class<*>>,
             args: Array<Any?>
         ): Any? {
@@ -173,7 +174,7 @@ internal sealed interface ProcessBasicInterface {
                 }
                 val request = SuspendInvocationRequest(
                     interfaceClassName = declaringClass.name,
-                    interfaceMethodName = method.name,
+                    interfaceMethodName = methodName,
                     interfaceParameterTypes = argTypes.map { it.name },
                     interfaceParameters = args.toList(),
                     remoteProcessSuspendCallback = suspendCallback
