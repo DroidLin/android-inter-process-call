@@ -37,7 +37,7 @@ internal val ProcessBasicInterface.bridgeInterface: RemoteProcessCallInterface
  * receive function call parameters, returns result from remote process implementation.
  *
  * these two remote call will throw remote exceptions while catch internal binder exceptions,
- * will provide internal/external exception handler in the following release.
+ * will provide internal/external exception handler in the next release.
  */
 internal sealed interface ProcessBasicInterface {
 
@@ -52,12 +52,14 @@ internal sealed interface ProcessBasicInterface {
     fun invokeRemoteProcessMethod(
         declaringClass: Class<*>,
         method: Method,
+        argTypes: Array<Class<*>>,
         args: Array<Any?>,
     ): Any? = null
 
     suspend fun invokeSuspendRemoteProcessMethod(
         declaringClass: Class<*>,
         method: Method,
+        argTypes: Array<Class<*>>,
         args: Array<Any?>,
     ): Any? = null
 
@@ -78,23 +80,25 @@ internal sealed interface ProcessBasicInterface {
             this.bridgeInterface += handShakeBridgeInterceptor { processKey, basicInterface ->
                 this.onReceiveBinder(processKey, basicInterface)
             }
-            this.bridgeInterface += remoteProcessCallInterceptor { clazz, method, args ->
-                this.invokeRemoteProcessMethod(declaringClass = clazz, method = method, args = args)
+            this.bridgeInterface += remoteProcessCallInterceptor { clazz, method, argTypes, args ->
+                this.invokeRemoteProcessMethod(declaringClass = clazz, method = method, argTypes = argTypes, args = args)
             }
-            this.bridgeInterface += suspendRemoteProcessCallInterceptor { clazz, method, args ->
-                this.invokeSuspendRemoteProcessMethod(declaringClass = clazz, method = method, args = args)
+            this.bridgeInterface += suspendRemoteProcessCallInterceptor { clazz, method, argTypes, args ->
+                this.invokeSuspendRemoteProcessMethod(declaringClass = clazz, method = method, argTypes = argTypes, args = args)
             }
         }
 
         override fun invokeRemoteProcessMethod(
             declaringClass: Class<*>,
             method: Method,
+            argTypes: Array<Class<*>>,
             args: Array<Any?>
         ): Any? = method.invoke(ProcessImplementationCenter[declaringClass], *args).safeUnbox()
 
         override suspend fun invokeSuspendRemoteProcessMethod(
             declaringClass: Class<*>,
             method: Method,
+            argTypes: Array<Class<*>>,
             args: Array<Any?>
         ): Any? = method.invokeSuspend(ProcessImplementationCenter[declaringClass], *args).safeUnbox()
     }
@@ -118,6 +122,7 @@ internal sealed interface ProcessBasicInterface {
         override fun invokeRemoteProcessMethod(
             declaringClass: Class<*>,
             method: Method,
+            argTypes: Array<Class<*>>,
             args: Array<Any?>
         ): Any? {
             val request = InvocationRequest(
@@ -147,6 +152,7 @@ internal sealed interface ProcessBasicInterface {
         override suspend fun invokeSuspendRemoteProcessMethod(
             declaringClass: Class<*>,
             method: Method,
+            argTypes: Array<Class<*>>,
             args: Array<Any?>
         ): Any? {
             return suspendCoroutineUninterceptedOrReturn { continuation ->
@@ -166,7 +172,7 @@ internal sealed interface ProcessBasicInterface {
                         } else continuationProxy.resume(data)
                     }
                 }
-                val parameterTypeExcludeContinuation = method.parameterTypes.filter { it != Continuation::class.java }.map { it.name }
+                val parameterTypeExcludeContinuation = argTypes.filter { it != Continuation::class.java }.map { it.name }
                 val parameterValueExcludeContinuation = args.filter { it !is Continuation<*> }
                 val request = SuspendInvocationRequest(
                     interfaceClassName = declaringClass.name,

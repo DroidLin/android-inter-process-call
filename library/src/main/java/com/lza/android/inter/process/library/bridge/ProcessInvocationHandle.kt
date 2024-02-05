@@ -74,6 +74,7 @@ class ProcessInvocationHandle(
             basicInterface.invokeRemoteProcessMethod(
                 declaringClass = declaringJvmClass,
                 method = method,
+                argTypes = method.parameterTypes ?: emptyArray(),
                 args = args
             )
         } ?: this.onNonSuspendFunctionFailureOrReturnNull(declaringJvmClass, method, args)
@@ -143,6 +144,7 @@ class ProcessInvocationHandle(
             basicInterface.invokeSuspendRemoteProcessMethod(
                 declaringClass = declaringJvmClass,
                 method = method,
+                argTypes = method.parameterTypes ?: emptyArray(),
                 args = args
             )
         } ?: this.onSuspendFunctionFailureOrReturnNull(declaringJvmClass, method, args)
