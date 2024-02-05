@@ -5,6 +5,7 @@ import com.google.devtools.ksp.getDeclaredProperties
 import com.google.devtools.ksp.isInternal
 import com.google.devtools.ksp.isOpen
 import com.google.devtools.ksp.isProtected
+import com.google.devtools.ksp.outerType
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.processing.Resolver
@@ -39,13 +40,13 @@ class InterProcessSymbolProcessProvider : SymbolProcessorProvider {
 
     override fun create(environment: SymbolProcessorEnvironment): SymbolProcessor {
         return object : SymbolProcessor {
-            override fun process(resolver: Resolver): List<KSAnnotated> =
+            override fun process(resolver: Resolver): List<KSAnnotated> {
                 runBlocking(this@InterProcessSymbolProcessProvider.coroutineScope.coroutineContext) {
                     findKSClassDeclaration(
                         resolver = resolver,
                         annotationClass = RemoteProcessInterface::class.java
                     ).map { ksClassDeclaration ->
-                        coroutineScope.async {
+                        this@InterProcessSymbolProcessProvider.coroutineScope.async {
                             this@InterProcessSymbolProcessProvider.buildInterfaceCallerProxyImplementationClass(
                                 resolver = resolver,
                                 codeGenerator = environment.codeGenerator,
@@ -53,8 +54,9 @@ class InterProcessSymbolProcessProvider : SymbolProcessorProvider {
                             )
                         }
                     }.awaitAll()
-                    emptyList()
                 }
+                return emptyList()
+            }
         }
     }
 
@@ -83,7 +85,7 @@ class InterProcessSymbolProcessProvider : SymbolProcessorProvider {
     /**
      * build caller interface proxy implementation class.
      */
-    private suspend fun buildInterfaceCallerProxyImplementationClass(
+    private fun buildInterfaceCallerProxyImplementationClass(
         resolver: Resolver,
         codeGenerator: CodeGenerator,
         interfaceClassDeclaration: KSClassDeclaration,
@@ -115,7 +117,7 @@ class InterProcessSymbolProcessProvider : SymbolProcessorProvider {
             interfaceClassDeclaration.getDeclaredFunctions().filter { it.isOpen() }
                 .forEach { functionDeclaration ->
                     this.buildFunction(
-                        sourceFileWriter = writer,
+                        writer = writer,
                         functionDeclaration = functionDeclaration
                     ) { this.buildFunctionBody(implClassName, writer, functionDeclaration)}
                 }
@@ -125,10 +127,10 @@ class InterProcessSymbolProcessProvider : SymbolProcessorProvider {
     }
 
     private fun buildKtClassPackage(
-        sourceFileWriter: Writer,
+        writer: Writer,
         packageName: String,
     ) {
-        sourceFileWriter.appendLine("package $packageName")
+        writer.appendLine("package $packageName")
             .appendLine()
             .appendLine("import android.content.Context")
             .appendLine("import com.lza.android.inter.process.library.interfaces.ExceptionHandler")
@@ -150,19 +152,19 @@ class InterProcessSymbolProcessProvider : SymbolProcessorProvider {
     }
 
     private inline fun buildKtClassBlock(
-        sourceFileWriter: Writer,
+        writer: Writer,
         interfaceDeclaration: KSClassDeclaration,
         className: String,
         body: () -> Unit
     ) {
-        sourceFileWriter.appendLine("class $className @JvmOverloads constructor (")
-            .appendLine("private val context: android.content.Context,")
-            .appendLine("private val proxyInterfaceClass: java.lang.Class<*>,")
-            .appendLine("private val currentProcessKey: kotlin.String,")
-            .appendLine("private val destinationProcessKey: kotlin.String,")
-            .appendLine("private val coroutineContext: kotlin.coroutines.CoroutineContext = kotlin.coroutines.EmptyCoroutineContext,")
-            .appendLine("private val interfaceDefaultImpl: ${requireNotNull(interfaceDeclaration.qualifiedName).asString()}? = null,")
-            .appendLine("private val exceptionHandler: com.lza.android.inter.process.library.interfaces.ExceptionHandler? = null")
+        writer.appendLine("class $className @JvmOverloads constructor (")
+            .appendLine("\tprivate val context: android.content.Context,")
+            .appendLine("\tprivate val proxyInterfaceClass: java.lang.Class<*>,")
+            .appendLine("\tprivate val currentProcessKey: kotlin.String,")
+            .appendLine("\tprivate val destinationProcessKey: kotlin.String,")
+            .appendLine("\tprivate val coroutineContext: kotlin.coroutines.CoroutineContext = kotlin.coroutines.EmptyCoroutineContext,")
+            .appendLine("\tprivate val interfaceDefaultImpl: ${requireNotNull(interfaceDeclaration.qualifiedName).asString()}? = null,")
+            .appendLine("\tprivate val exceptionHandler: com.lza.android.inter.process.library.interfaces.ExceptionHandler? = null")
             .appendLine(") : ${requireNotNull(interfaceDeclaration.qualifiedName).asString()} {")
             .apply { body() }
             .appendLine("}")
@@ -174,7 +176,7 @@ class InterProcessSymbolProcessProvider : SymbolProcessorProvider {
         propertyBody: () -> Unit
     ) {
         writer.appendLine()
-            .append("override ")
+            .append("\toverride ")
             .apply {
                 if (propertyDeclaration.isMutable) {
                     append("var")
@@ -188,19 +190,11 @@ class InterProcessSymbolProcessProvider : SymbolProcessorProvider {
                 }
             }
             .append(propertyDeclaration.simpleName.asString())
-            .append(":").append(" ")
-            .apply {
-                val returnKSType = propertyDeclaration.type.resolve()
-                append(this@InterProcessSymbolProcessProvider.buildType(returnKSType))
-                if (returnKSType.isMarkedNullable) {
-                    append("?")
-                }
-            }
+            .append(": ").append(this@InterProcessSymbolProcessProvider.buildType(propertyDeclaration.type.resolve()))
             .appendLine()
-            .append("get()").append(" ").append("{")
-            .appendLine()
+            .append("\t\tget() ").append("{").appendLine()
             .apply { propertyBody() }
-            .append("}")
+            .append("\t\t}")
             .appendLine()
     }
 
@@ -209,23 +203,35 @@ class InterProcessSymbolProcessProvider : SymbolProcessorProvider {
         writer: Writer,
         propertyDeclaration: KSPropertyDeclaration
     ) {
-        writer.appendLine("if (this@${className}.interfaceDefaultImpl != null) {")
+        writer
+            .appendLine("\t\t\tval data = com.lza.android.inter.process.library.invokeDirectProperty<${buildType(propertyDeclaration.type.resolve(), false)}>(")
+            .appendLine("\t\t\t\tcoroutineContext = this@${className}.coroutineContext,")
+            .appendLine("\t\t\t\tandroidContext = this@${className}.context,")
+            .appendLine("\t\t\t\tcurrentProcessKey = this@${className}.currentProcessKey,")
+            .appendLine("\t\t\t\tdestinationProcessKey = this@${className}.destinationProcessKey,")
+            .appendLine("\t\t\t\tdeclaringClassName = \"${requireNotNull(propertyDeclaration.parentDeclaration?.qualifiedName).asString()}\",")
+            .appendLine("\t\t\t\tpropertyName = \"${propertyDeclaration.simpleName.asString()}\"")
+            .appendLine("\t\t\t)")
+            .appendLine("\t\t\tif(data != null) {")
+            .appendLine("\t\t\t\treturn data")
+            .appendLine("\t\t\t}")
+            .appendLine("\t\t\tif (this@${className}.interfaceDefaultImpl != null) {")
             .apply {
                 if (propertyDeclaration.extensionReceiver != null) {
-                    appendLine("return this@${className}.interfaceDefaultImpl.run { ${propertyDeclaration.simpleName.asString()} }")
-                } else appendLine("return this@${className}.interfaceDefaultImpl.${propertyDeclaration.simpleName.asString()}")
+                    appendLine("\t\t\t\treturn this@${className}.interfaceDefaultImpl.run { ${propertyDeclaration.simpleName.asString()} }")
+                } else appendLine("\t\t\t\treturn this@${className}.interfaceDefaultImpl.${propertyDeclaration.simpleName.asString()}")
             }
-            .appendLine("}")
-            .appendLine("throw kotlin.IllegalArgumentException(\"function return type requires non-null type, but returns null type after IPC call and the fallback operation!! please check.\")")
+            .appendLine("\t\t\t}")
+            .appendLine("\t\t\tthrow kotlin.IllegalArgumentException(\"function return type requires non-null type, but returns null type after IPC call and the fallback operation!! please check.\")")
     }
 
     private fun buildFunction(
-        sourceFileWriter: Writer,
+        writer: Writer,
         functionDeclaration: KSFunctionDeclaration,
         functionBody: () -> Unit
     ) {
-        sourceFileWriter.appendLine()
-            .append("override").append(" ")
+        writer.appendLine()
+            .append("\toverride").append(" ")
             .apply {
                 if (functionDeclaration.isProtected()) {
                     append("protected").append(" ")
@@ -244,60 +250,91 @@ class InterProcessSymbolProcessProvider : SymbolProcessorProvider {
                 }
             }
             .append("${functionDeclaration.simpleName.asString()}(")
-            .apply {
-                this@InterProcessSymbolProcessProvider.buildFunctionParameters(
-                    sourceFileWriter,
-                    functionDeclaration
-                )
-            }
+            .append(this.buildFunctionParameters(functionDeclaration))
             .append(")")
             .apply {
                 val returnKSType = functionDeclaration.returnType?.resolve()
                 if (returnKSType != null) {
                     append(": ${this@InterProcessSymbolProcessProvider.buildType(returnKSType)}")
-                    if (returnKSType.isMarkedNullable) {
-                        append("?")
-                    }
                 }
             }
             .appendLine(" {")
             .apply { functionBody() }
-            .appendLine("}")
+            .appendLine("\t}")
     }
 
     private fun buildFunctionParameters(
-        sourceFileWriter: Writer,
         functionDeclaration: KSFunctionDeclaration,
-    ) {
-        sourceFileWriter.run {
-            functionDeclaration.parameters.forEachIndexed { index, ksValueParameter ->
-                val parameterTypeClassDeclaration = ksValueParameter.type.resolve()
-                if (index != 0) {
-                    append(", ")
-                }
-                append(requireNotNull(ksValueParameter.name).asString()).append(": ")
-                    .append(
-                        this@InterProcessSymbolProcessProvider.buildType(
-                            parameterTypeClassDeclaration
-                        )
-                    )
+    ): String {
+        val stringBuilder = StringBuilder()
+        functionDeclaration.parameters.forEachIndexed { index, ksValueParameter ->
+            val parameterTypeClassDeclaration = ksValueParameter.type.resolve()
+            if (index != 0) {
+                stringBuilder.append(", ")
+            }
+            if (ksValueParameter.isVararg) {
+                stringBuilder.append("vararg ").append(requireNotNull(ksValueParameter.name).asString()).append(": ")
+                    .append(this.buildType(parameterTypeClassDeclaration))
+            } else {
+                stringBuilder.append(requireNotNull(ksValueParameter.name).asString()).append(": ")
+                    .append(this.buildType(parameterTypeClassDeclaration))
             }
         }
+        return stringBuilder.toString()
     }
 
     private fun buildFunctionBody(
         className: String,
-        sourceFileWriter: Writer,
+        writer: Writer,
         functionDeclaration: KSFunctionDeclaration,
     ) {
-        sourceFileWriter.appendLine("if (this@${className}.interfaceDefaultImpl != null) {")
+        writer
+            .apply {
+                if (functionDeclaration.modifiers.contains(Modifier.SUSPEND)) {
+                } else {
+                    appendLine("\t\tval data = com.lza.android.inter.process.library.invokeDirectKotlinFunction<${buildType(requireNotNull(functionDeclaration.returnType).resolve(), false)}>(")
+                        .appendLine("\t\t\tcoroutineContext = this@${className}.coroutineContext,")
+                        .appendLine("\t\t\tandroidContext = this@${className}.context,")
+                        .appendLine("\t\t\tcurrentProcessKey = this@${className}.currentProcessKey,")
+                        .appendLine("\t\t\tdestinationProcessKey = this@${className}.destinationProcessKey,")
+                        .appendLine("\t\t\tdeclaringClassName = \"${requireNotNull(functionDeclaration.parentDeclaration?.qualifiedName).asString()}\",")
+                        .appendLine("\t\t\tfunctionName = \"${functionDeclaration.simpleName.asString()}\",")
+                        .appendLine("\t\t\tfunctionParameterTypes = kotlin.collections.listOf(${buildFunctionCallParameterTypes(functionDeclaration)}),")
+                        .appendLine("\t\t\tfunctionParameters = kotlin.collections.listOf(${buildFunctionCallParameter(functionDeclaration)}),")
+                        .appendLine("\t\t)")
+                        .appendLine("\t\tif(data != null) {")
+                        .appendLine("\t\t\treturn data")
+                        .appendLine("\t\t}")
+                }
+            }
+            .appendLine("\t\tif (this@${className}.interfaceDefaultImpl != null) {")
             .apply {
                 if (functionDeclaration.extensionReceiver != null) {
-                    appendLine("return this@${className}.interfaceDefaultImpl.run { ${functionDeclaration.simpleName.asString()}(${this@InterProcessSymbolProcessProvider.buildFunctionCallParameter(functionDeclaration)}) }")
-                } else appendLine("return this@${className}.interfaceDefaultImpl.${functionDeclaration.simpleName.asString()}(${this@InterProcessSymbolProcessProvider.buildFunctionCallParameter(functionDeclaration)})")
+                    appendLine("\t\t\treturn this@${className}.interfaceDefaultImpl.run { ${functionDeclaration.simpleName.asString()}(${this@InterProcessSymbolProcessProvider.buildFunctionCallParameter(functionDeclaration)}) }")
+                } else {
+                    appendLine("\t\t\treturn this@${className}.interfaceDefaultImpl.${functionDeclaration.simpleName.asString()}(${this@InterProcessSymbolProcessProvider.buildFunctionCallParameter(functionDeclaration)})")
+                }
             }
-            .appendLine("}")
-            .appendLine("throw kotlin.IllegalArgumentException(\"function return type requires non-null type, but returns null type after IPC call and the fallback operation!! please check.\")")
+            .appendLine("\t\t}")
+            .appendLine("\t\tthrow kotlin.IllegalArgumentException(\"function return type requires non-null type, but returns null type after IPC call and the fallback operation!! please check.\")")
+    }
+
+    private fun buildFunctionCallParameterTypes(
+        functionDeclaration: KSFunctionDeclaration
+    ): String {
+        val stringBuilder = StringBuilder()
+        functionDeclaration.parameters.forEachIndexed { index, ksValueParameter ->
+            if (index != 0) {
+                stringBuilder.append(", ")
+            }
+            val parameterizedTypeArguments = ksValueParameter.type.resolve().arguments
+            if (parameterizedTypeArguments.isNotEmpty()) {
+
+            } else {
+                stringBuilder.append("${requireNotNull(ksValueParameter.type.resolve().declaration.qualifiedName).asString()}::class.java")
+            }
+        }
+        return stringBuilder.toString()
     }
 
     private fun buildFunctionCallParameter(
@@ -315,7 +352,7 @@ class InterProcessSymbolProcessProvider : SymbolProcessorProvider {
         return stringBuilder.toString()
     }
 
-    private fun buildType(ksType: KSType): String {
+    private fun buildType(ksType: KSType, nullableEnabled: Boolean = true): String {
         val stringBuilder = StringBuilder()
             .append(requireNotNull(ksType.declaration.qualifiedName).asString())
         val typeDeclaration = ksType.arguments
@@ -326,16 +363,15 @@ class InterProcessSymbolProcessProvider : SymbolProcessorProvider {
                         if (index != 0) {
                             append(", ")
                         }
-                        append(
-                            this@InterProcessSymbolProcessProvider.buildType(
-                                requireNotNull(
-                                    ksTypeParameter.type
-                                ).resolve()
-                            )
-                        )
+                        val parameterType = requireNotNull(ksTypeParameter.type).resolve()
+                        val parameterTypeString = this@InterProcessSymbolProcessProvider.buildType(parameterType)
+                        append(parameterTypeString)
                     }
                 }
                 .append(">")
+        }
+        if (nullableEnabled && ksType.isMarkedNullable) {
+            stringBuilder.append("?")
         }
 
         return stringBuilder.toString()

@@ -1,6 +1,6 @@
 package com.lza.android.inter.process.library.bridge.interceptor
 
-import com.lza.android.inter.process.library.bridge.parameter.InvocationRequest
+import com.lza.android.inter.process.library.bridge.parameter.ReflectionInvocationRequest
 import com.lza.android.inter.process.library.bridge.parameter.Request
 import com.lza.android.inter.process.library.stringTypeConvert
 import kotlinx.coroutines.CoroutineScope
@@ -25,13 +25,13 @@ internal fun remoteProcessCallInterceptor(block: (Class<*>, String, Array<Class<
 
 internal class RemoteProcessCallBridgeInterceptor(
     private val block: (Class<*>, String, Array<Class<*>>, Array<Any?>) -> Any?
-) : BridgeInterceptor<InvocationRequest> {
+) : BridgeInterceptor<ReflectionInvocationRequest> {
 
     private val coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
-    override fun shouldHandle(request: Request): Boolean = request is InvocationRequest
+    override fun shouldHandle(request: Request): Boolean = request is ReflectionInvocationRequest
 
-    override fun handle(request: InvocationRequest): Any? {
+    override fun handle(request: ReflectionInvocationRequest): Any? {
         val declaringJvmClass = Class.forName(request.interfaceClassName) as Class<Any>
         val parameterClassTypes = request.interfaceParameterTypes.stringTypeConvert
         return if (request.isKotlinFunction) {

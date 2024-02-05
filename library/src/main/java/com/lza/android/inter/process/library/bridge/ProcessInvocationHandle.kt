@@ -180,13 +180,11 @@ class ProcessInvocationHandle(
     }
 
     private suspend fun ensureBinderConnectionEstablished(): Boolean {
-        return if (!ProcessConnectionCenter.isRemoteConnected(destKey = this.destinationProcessKey)) {
-            ProcessConnectionCenter.tryConnectToRemote(
-                context = this.context,
-                selfKey = this.currentProcessKey,
-                destKey = this.destinationProcessKey,
-            )
-        } else true
+        return ProcessConnectionCenter.tryConnectToRemote(
+            context = this.context,
+            selfKey = this.currentProcessKey,
+            destKey = this.destinationProcessKey,
+        )
     }
 
     private inline fun <T : Any> runWithExceptionHandle(block: () -> T?): T? {

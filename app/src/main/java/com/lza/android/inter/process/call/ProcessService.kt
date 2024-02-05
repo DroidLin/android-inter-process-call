@@ -41,4 +41,10 @@ interface ProcessService : IPCNoProguard {
     suspend fun suspendTestThrowable() {
         throw NullPointerException()
     }
+
+    fun parameterNullableTestFunction(path: String?) {}
+
+    fun varargParameterTestFunction(vararg path: String?) {}
+
+    fun suspendArrayParameterTestFunction(arrayParameter: Array<String>): Array<Int> = emptyArray()
 }

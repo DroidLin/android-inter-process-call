@@ -1,7 +1,7 @@
 package com.lza.android.inter.process.library.bridge.interceptor
 
 import com.lza.android.inter.process.library.bridge.parameter.Request
-import com.lza.android.inter.process.library.bridge.parameter.SuspendInvocationRequest
+import com.lza.android.inter.process.library.bridge.parameter.ReflectionSuspendInvocationRequest
 import com.lza.android.inter.process.library.interfaces.RemoteProcessSuspendCallback
 import com.lza.android.inter.process.library.stringTypeConvert
 import kotlinx.coroutines.Dispatchers
@@ -21,11 +21,11 @@ internal fun suspendRemoteProcessCallInterceptor(block: suspend (Class<*>, Strin
 internal class SuspendRemoteProcessCallBridgeInterceptor(
     private val coroutineContext: CoroutineContext = Dispatchers.Default,
     private val block: suspend (Class<*>, String, Array<Class<*>>, Array<Any?>) -> Any?
-) : BridgeInterceptor<SuspendInvocationRequest> {
+) : BridgeInterceptor<ReflectionSuspendInvocationRequest> {
 
-    override fun shouldHandle(request: Request): Boolean = request is SuspendInvocationRequest
+    override fun shouldHandle(request: Request): Boolean = request is ReflectionSuspendInvocationRequest
 
-    override fun handle(request: SuspendInvocationRequest): Any? {
+    override fun handle(request: ReflectionSuspendInvocationRequest): Any? {
         val declaringJvmClass = Class.forName(request.interfaceClassName) as Class<Any>
         val parameterClassTypes = request.interfaceParameterTypes.stringTypeConvert
         return this.invokeKotlinSuspendFunction(
