@@ -20,12 +20,12 @@ import kotlin.coroutines.resumeWithException
  * @author liuzhongao
  * @since 2024/1/17 00:13
  */
-internal fun remoteProcessCallInterceptor(block: (Class<*>, method: Method, args: Array<Any?>) -> Any?): BridgeInterceptor<Request> {
+internal fun remoteProcessCallInterceptor(block: (Class<*>, Method, Array<Class<*>>, Array<Any?>) -> Any?): BridgeInterceptor<Request> {
     return RemoteProcessCallBridgeInterceptor(block = block) as BridgeInterceptor<Request>
 }
 
 internal class RemoteProcessCallBridgeInterceptor(
-    private val block: (Class<*>, method: Method, args: Array<Any?>) -> Any?
+    private val block: (Class<*>, Method, Array<Class<*>>, Array<Any?>) -> Any?
 ) : BridgeInterceptor<InvocationRequest> {
 
     private val coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
@@ -82,17 +82,18 @@ internal class RemoteProcessCallBridgeInterceptor(
         val deferredTask = this.coroutineScope.async<Any?> {
             suspendCancellableCoroutine { continuation ->
                 // suspend functions need Continuation instance to be the last parameter in parameter array.
-                val parameterTypesWithContinuation = parameterTypes + Continuation::class.java
-                val parameterValuesWithContinuation = parameterValues + continuation
+                val parameterTypesWithContinuation = (parameterTypes + Continuation::class.java).toTypedArray()
+                val parameterValuesWithContinuation = (parameterValues + continuation).toTypedArray()
                 val method = declaringJvmClass.getDeclaredMethod(
                     methodName,
-                    *(parameterTypesWithContinuation.toTypedArray())
+                    *parameterTypesWithContinuation
                 )
                 kotlin.runCatching {
                     this@RemoteProcessCallBridgeInterceptor.block.invoke(
                         declaringJvmClass,
                         method,
-                        parameterValuesWithContinuation.toTypedArray()
+                        parameterTypesWithContinuation,
+                        parameterValuesWithContinuation
                     )
                 }
                     .onSuccess { continuation.resume(it) }
@@ -108,9 +109,11 @@ internal class RemoteProcessCallBridgeInterceptor(
         parameterTypes: List<Class<*>>,
         parameterValues: List<Any?>
     ): Any? {
+        val parameterTypeArray = parameterTypes.toTypedArray()
+        val parameterValueArray = parameterValues.toTypedArray()
         val method =
-            declaringJvmClass.getDeclaredMethod(methodName, *(parameterTypes.toTypedArray()))
-        return this.block.invoke(declaringJvmClass, method, parameterValues.toTypedArray())
+            declaringJvmClass.getDeclaredMethod(methodName, *parameterTypeArray)
+        return this.block.invoke(declaringJvmClass, method, parameterTypeArray, parameterValueArray)
     }
 
     private fun invokeJavaMethod(
@@ -119,8 +122,10 @@ internal class RemoteProcessCallBridgeInterceptor(
         parameterTypes: List<Class<*>>,
         parameterValues: List<Any?>
     ): Any? {
+        val parameterTypeArray = parameterTypes.toTypedArray()
+        val parameterValueArray = parameterValues.toTypedArray()
         val method =
-            declaringJvmClass.getDeclaredMethod(methodName, *(parameterTypes.toTypedArray()))
-        return this.block.invoke(declaringJvmClass, method, parameterValues.toTypedArray())
+            declaringJvmClass.getDeclaredMethod(methodName, *parameterTypeArray)
+        return this.block.invoke(declaringJvmClass, method, parameterTypeArray, parameterValueArray)
     }
 }

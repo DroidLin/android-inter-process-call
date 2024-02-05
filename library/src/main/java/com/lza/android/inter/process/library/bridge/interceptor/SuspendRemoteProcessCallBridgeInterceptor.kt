@@ -15,13 +15,13 @@ import kotlin.coroutines.CoroutineContext
  * @author liuzhongao
  * @since 2024/1/17 10:31
  */
-internal fun suspendRemoteProcessCallInterceptor(block: suspend (Class<*>, Method, Array<Any?>) -> Any?): BridgeInterceptor<Request> {
+internal fun suspendRemoteProcessCallInterceptor(block: suspend (Class<*>, Method, Array<Class<*>>,Array<Any?>) -> Any?): BridgeInterceptor<Request> {
     return SuspendRemoteProcessCallBridgeInterceptor(block = block) as BridgeInterceptor<Request>
 }
 
 internal class SuspendRemoteProcessCallBridgeInterceptor(
     private val coroutineContext: CoroutineContext = Dispatchers.Default,
-    private val block: suspend (Class<*>, method: Method, args: Array<Any?>) -> Any?
+    private val block: suspend (Class<*>, Method, Array<Class<*>>, Array<Any?>) -> Any?
 ) : BridgeInterceptor<SuspendInvocationRequest> {
 
     override fun shouldHandle(request: Request): Boolean = request is SuspendInvocationRequest
@@ -49,10 +49,11 @@ internal class SuspendRemoteProcessCallBridgeInterceptor(
             override val context: CoroutineContext get() = this@SuspendRemoteProcessCallBridgeInterceptor.coroutineContext
             override fun resumeWith(result: Result<Any?>) = suspendCallback.callbackSuspend(data = result.getOrNull(), throwable = result.exceptionOrNull())
         }
-        val functionInvocation = this.block.javaClass.getDeclaredMethod("invoke", Class::class.java, Method::class.java, Array::class.java, Continuation::class.java)
         // suspend functions need Continuation instance to be the last parameter in parameter array.
-        val parameterTypesWithContinuation = parameterTypes + Continuation::class.java
-        val method = declaringJvmClass.getDeclaredMethod(methodName, *(parameterTypesWithContinuation.toTypedArray()))
-        return functionInvocation.invoke(this.block, declaringJvmClass, method, parameterValues.toTypedArray(), continuation)
+        val parameterTypesWithContinuation = (parameterTypes + Continuation::class.java).toTypedArray()
+        val parameterValuesWithoutContinuation = parameterValues.toTypedArray()
+        val functionInvocation = this.block.javaClass.getDeclaredMethod("invoke", Class::class.java, Method::class.java, parameterTypesWithContinuation.javaClass, parameterValuesWithoutContinuation.javaClass, Continuation::class.java)
+        val method = declaringJvmClass.getDeclaredMethod(methodName, *parameterTypesWithContinuation)
+        return functionInvocation.invoke(this.block, declaringJvmClass, method, parameterTypesWithContinuation, parameterValuesWithoutContinuation, continuation)
     }
 }
