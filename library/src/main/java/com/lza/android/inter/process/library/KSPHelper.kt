@@ -33,7 +33,6 @@ fun <T : Any> invokeDirectProperty(
     return basicInterface.invokeDirectRemoteFunction(
         declaringClassName = declaringClassName,
         functionName = propertyName,
-        argTypes = emptyList(),
         args = emptyList()
     ) as? T
 }
@@ -45,7 +44,6 @@ fun <T : Any> invokeDirectKotlinFunction(
     destinationProcessKey: String,
     declaringClassName: String,
     functionName: String,
-    functionParameterTypes: List<Class<*>>,
     functionParameters: List<Any?>
 ): T? {
     val isConnected = runBlocking(coroutineContext) {
@@ -65,7 +63,6 @@ fun <T : Any> invokeDirectKotlinFunction(
     return basicInterface.invokeDirectRemoteFunction(
         declaringClassName = declaringClassName,
         functionName = functionName,
-        argTypes = functionParameterTypes,
         args = functionParameters
     ) as? T
 }
@@ -76,7 +73,6 @@ suspend fun <T : Any> invokeDirectSuspendKotlinFunction(
     destinationProcessKey: String,
     declaringClassName: String,
     functionName: String,
-    functionParameterTypes: List<Class<*>>,
     functionParameters: List<Any?>
 ): T? {
     val isConnected = ProcessConnectionCenter.tryConnectToRemote(
@@ -94,7 +90,6 @@ suspend fun <T : Any> invokeDirectSuspendKotlinFunction(
     return basicInterface.invokeDirectRemoteSuspendFunction(
         declaringClassName = declaringClassName,
         functionName = functionName,
-        argTypes = functionParameterTypes,
         args = functionParameters
     ) as? T
 }

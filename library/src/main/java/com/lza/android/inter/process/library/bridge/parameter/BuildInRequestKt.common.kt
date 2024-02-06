@@ -9,7 +9,6 @@ import com.lza.android.inter.process.library.interfaces.RemoteProcessSuspendCall
 import com.lza.android.inter.process.library.interfaces.binder
 import com.lza.android.inter.process.library.interfaces.bridgeInterface
 import com.lza.android.inter.process.library.interfaces.rpcInterface
-import java.io.Serial
 import java.io.Serializable
 
 /**
@@ -235,23 +234,12 @@ internal data class ReflectionSuspendInvocationRequest(
 internal data class DirectInvocationRequest(
     val interfaceClassName: String,
     val interfaceMethodName: String,
-    val interfaceParameterTypes: List<String>,
     val interfaceParameters: List<Any?>,
-    val isKotlinFunction: Boolean = false,
 ) : Request, Parcelable, Serializable {
 
     constructor(parcel: Parcel) : this(
         interfaceClassName = requireNotNull(parcel.readString()),
         interfaceMethodName = requireNotNull(parcel.readString()),
-        interfaceParameterTypes = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ArrayList<String>().also { list ->
-                parcel.readList(list, DirectInvocationRequest::class.java.classLoader, String::class.java)
-            }
-        } else {
-            ArrayList<String>().also { list ->
-                parcel.readList(list, DirectInvocationRequest::class.java.classLoader)
-            }
-        },
         interfaceParameters = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ArrayList<Any>().also { list ->
                 parcel.readList(list, DirectInvocationRequest::class.java.classLoader, Any::class.java)
@@ -260,16 +248,13 @@ internal data class DirectInvocationRequest(
             ArrayList<Any>().also { list ->
                 parcel.readList(list, DirectInvocationRequest::class.java.classLoader)
             }
-        },
-        parcel.readByte() != 0.toByte()
+        }
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
         parcel.writeString(this.interfaceClassName)
         parcel.writeString(this.interfaceMethodName)
-        parcel.writeList(this.interfaceParameterTypes)
         parcel.writeList(this.interfaceParameters)
-        parcel.writeByte(if (this.isKotlinFunction) 1 else 0)
     }
 
     override fun describeContents(): Int {
@@ -295,7 +280,6 @@ internal data class DirectInvocationRequest(
 internal data class DirectSuspendInvocationRequest(
     val interfaceClassName: String,
     val interfaceMethodName: String,
-    val interfaceParameterTypes: List<String>,
     val interfaceParameters: List<Any?>,
     val remoteProcessSuspendCallback: RemoteProcessSuspendCallback
 ) : Request, Parcelable {
@@ -303,22 +287,6 @@ internal data class DirectSuspendInvocationRequest(
     constructor(parcel: Parcel) : this(
         interfaceClassName = parcel.readString() ?: "",
         interfaceMethodName = parcel.readString() ?: "",
-        interfaceParameterTypes = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ArrayList<String>().also { list ->
-                parcel.readList(
-                    list,
-                    DirectSuspendInvocationRequest::class.java.classLoader,
-                    String::class.java
-                )
-            }
-        } else {
-            ArrayList<String>().also { list ->
-                parcel.readList(
-                    list,
-                    DirectSuspendInvocationRequest::class.java.classLoader
-                )
-            }
-        },
         interfaceParameters = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ArrayList<Any>().also { list ->
                 parcel.readList(
@@ -343,7 +311,6 @@ internal data class DirectSuspendInvocationRequest(
     override fun writeToParcel(parcel: Parcel, flags: Int) {
         parcel.writeString(this.interfaceClassName)
         parcel.writeString(this.interfaceMethodName)
-        parcel.writeList(this.interfaceParameterTypes)
         parcel.writeList(this.interfaceParameters)
         parcel.writeStrongBinder(this.remoteProcessSuspendCallback.remoteProcessCallInterface.binder)
     }

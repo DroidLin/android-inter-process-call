@@ -16,6 +16,8 @@ interface ProcessService : IPCNoProguard {
 
     val String.interfaceKey: String? get() = null
 
+    val String?.interfaceKeyNullable: String? get() = null
+
     fun getProcessInfo(): String?
 
     fun testFunction(path: String, parameters: Int): String
@@ -29,6 +31,8 @@ interface ProcessService : IPCNoProguard {
     suspend fun suspendPostDataToRemote(arrayParameter: Array<String>): Array<Int>
 
     suspend fun String.calculateStringCount(): Int
+
+    fun String.calculateStringCount(path: String, arrayParameter: Array<String?>?): Int = 0
 
     fun testFunctionNoReturn() {}
 

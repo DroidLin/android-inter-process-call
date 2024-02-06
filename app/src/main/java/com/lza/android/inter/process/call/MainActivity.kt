@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
-    private val processService = ProcessCenter.getService(ProcessConst.KEY_MAIN_PROCESS, ProcessService::class.java, LibraryProcessServiceImpl)
+    private val processService = ProcessCenter.getService(ProcessConst.KEY_LIBRARY_PROCESS, ProcessService::class.java, LibraryProcessServiceImpl)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
