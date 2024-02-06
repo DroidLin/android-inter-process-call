@@ -1,7 +1,7 @@
 package com.lza.android.inter.process.library.bridge.interceptor
 
-import com.lza.android.inter.process.library.bridge.parameter.Request
 import com.lza.android.inter.process.library.bridge.parameter.ReflectionSuspendInvocationRequest
+import com.lza.android.inter.process.library.bridge.parameter.Request
 import com.lza.android.inter.process.library.interfaces.RemoteProcessSuspendCallback
 import com.lza.android.inter.process.library.stringTypeConvert
 import kotlinx.coroutines.Dispatchers
@@ -14,7 +14,7 @@ import kotlin.coroutines.CoroutineContext
  * @author liuzhongao
  * @since 2024/1/17 10:31
  */
-internal fun suspendRemoteProcessCallInterceptor(block: suspend (Class<*>, String, Array<Class<*>>,Array<Any?>) -> Any?): BridgeInterceptor<Request> {
+internal fun suspendRemoteProcessCallInterceptor(block: suspend (Class<*>, String, Array<Class<*>>, Array<Any?>) -> Any?): BridgeInterceptor<Request> {
     return SuspendRemoteProcessCallBridgeInterceptor(block = block) as BridgeInterceptor<Request>
 }
 
@@ -51,7 +51,7 @@ internal class SuspendRemoteProcessCallBridgeInterceptor(
         // suspend functions need Continuation instance to be the last parameter in parameter array.
         val parameterTypesWithContinuation = (parameterTypes + Continuation::class.java).toTypedArray()
         val parameterValuesWithoutContinuation = parameterValues.toTypedArray()
-        val functionInvocation = this.block.javaClass.getDeclaredMethod("invoke", Class::class.java, String::class.java, parameterTypesWithContinuation.javaClass, parameterValuesWithoutContinuation.javaClass, Continuation::class.java)
-        return functionInvocation.invoke(this.block, declaringJvmClass, methodName, parameterTypesWithContinuation, parameterValuesWithoutContinuation, continuation)
+        return (this.block as Function5<Class<*>, String, Array<Class<*>>, Array<Any?>, Continuation<Any?>, Any?>)
+            .invoke(declaringJvmClass, methodName, parameterTypesWithContinuation, parameterValuesWithoutContinuation, continuation)
     }
 }
