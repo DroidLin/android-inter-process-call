@@ -138,6 +138,7 @@ internal object InterfaceProxyClassGenerator {
         writer: Writer,
         propertyDeclaration: KSPropertyDeclaration
     ) {
+        val propertyType = propertyDeclaration.type.resolve()
         writer
             .appendLine("\t\t\tval data = this@${className}.runWithExceptionHandle {")
             .appendLine("\t\t\t\tcom.lza.android.inter.process.library.invokeDirectProperty<${buildType(propertyDeclaration.type.resolve(), false)}>(")
@@ -159,7 +160,11 @@ internal object InterfaceProxyClassGenerator {
                 } else appendLine("\t\t\t\treturn this@${className}.interfaceDefaultImpl.${propertyDeclaration.simpleName.asString()}")
             }
             .appendLine("\t\t\t}")
-            .appendLine("\t\t\tthrow kotlin.IllegalArgumentException(\"function return type requires non-null type, but returns null type after IPC call and the fallback operation!! please check.\")")
+            .apply {
+                if (propertyType.isMarkedNullable) {
+                    appendLine("\t\t\treturn null")
+                } else appendLine("\t\t\tthrow kotlin.IllegalArgumentException(\"function return type requires non-null type, but returns null type after IPC call and the fallback operation!! please check.\")")
+            }
     }
 
     private fun buildFunction(
