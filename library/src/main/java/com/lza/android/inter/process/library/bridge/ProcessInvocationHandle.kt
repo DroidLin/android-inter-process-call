@@ -73,7 +73,7 @@ class ProcessInvocationHandle(
         return runWithExceptionHandle {
             basicInterface.invokeRemoteProcessMethod(
                 declaringClass = declaringJvmClass,
-                method = method,
+                methodName = method.name,
                 argTypes = method.parameterTypes ?: emptyArray(),
                 args = args
             )
@@ -145,7 +145,7 @@ class ProcessInvocationHandle(
         return runWithExceptionHandle {
             basicInterface.invokeSuspendRemoteProcessMethod(
                 declaringClass = declaringJvmClass,
-                method = method,
+                methodName = method.name,
                 argTypes = argTypes,
                 args = args
             )
@@ -180,13 +180,11 @@ class ProcessInvocationHandle(
     }
 
     private suspend fun ensureBinderConnectionEstablished(): Boolean {
-        return if (!ProcessConnectionCenter.isRemoteConnected(destKey = this.destinationProcessKey)) {
-            ProcessConnectionCenter.tryConnectToRemote(
-                context = this.context,
-                selfKey = this.currentProcessKey,
-                destKey = this.destinationProcessKey,
-            )
-        } else true
+        return ProcessConnectionCenter.tryConnectToRemote(
+            context = this.context,
+            selfKey = this.currentProcessKey,
+            destKey = this.destinationProcessKey,
+        )
     }
 
     private inline fun <T : Any> runWithExceptionHandle(block: () -> T?): T? {
@@ -207,7 +205,7 @@ class ProcessInvocationHandle(
 
     private fun isExceptionHandled(throwable: Throwable?): Boolean {
         throwable ?: return true
-        return this.exceptionHandler?.handleException(throwable = null) ?: false
+        return this.exceptionHandler?.handleException(throwable = throwable) ?: false
     }
 
     companion object {

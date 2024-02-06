@@ -1,6 +1,6 @@
 package com.lza.android.inter.process.library.bridge.interceptor
 
-import com.lza.android.inter.process.library.bridge.parameter.InvocationRequest
+import com.lza.android.inter.process.library.bridge.parameter.ReflectionInvocationRequest
 import com.lza.android.inter.process.library.bridge.parameter.Request
 import com.lza.android.inter.process.library.stringTypeConvert
 import kotlinx.coroutines.CoroutineScope
@@ -9,7 +9,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
-import java.lang.reflect.Method
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -20,19 +19,19 @@ import kotlin.coroutines.resumeWithException
  * @author liuzhongao
  * @since 2024/1/17 00:13
  */
-internal fun remoteProcessCallInterceptor(block: (Class<*>, Method, Array<Class<*>>, Array<Any?>) -> Any?): BridgeInterceptor<Request> {
+internal fun remoteProcessCallInterceptor(block: (Class<*>, String, Array<Class<*>>, Array<Any?>) -> Any?): BridgeInterceptor<Request> {
     return RemoteProcessCallBridgeInterceptor(block = block) as BridgeInterceptor<Request>
 }
 
 internal class RemoteProcessCallBridgeInterceptor(
-    private val block: (Class<*>, Method, Array<Class<*>>, Array<Any?>) -> Any?
-) : BridgeInterceptor<InvocationRequest> {
+    private val block: (Class<*>, String, Array<Class<*>>, Array<Any?>) -> Any?
+) : BridgeInterceptor<ReflectionInvocationRequest> {
 
     private val coroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
-    override fun shouldHandle(request: Request): Boolean = request is InvocationRequest
+    override fun shouldHandle(request: Request): Boolean = request is ReflectionInvocationRequest
 
-    override fun handle(request: InvocationRequest): Any? {
+    override fun handle(request: ReflectionInvocationRequest): Any? {
         val declaringJvmClass = Class.forName(request.interfaceClassName) as Class<Any>
         val parameterClassTypes = request.interfaceParameterTypes.stringTypeConvert
         return if (request.isKotlinFunction) {
@@ -84,14 +83,10 @@ internal class RemoteProcessCallBridgeInterceptor(
                 // suspend functions need Continuation instance to be the last parameter in parameter array.
                 val parameterTypesWithContinuation = (parameterTypes + Continuation::class.java).toTypedArray()
                 val parameterValuesWithContinuation = (parameterValues + continuation).toTypedArray()
-                val method = declaringJvmClass.getDeclaredMethod(
-                    methodName,
-                    *parameterTypesWithContinuation
-                )
                 kotlin.runCatching {
                     this@RemoteProcessCallBridgeInterceptor.block.invoke(
                         declaringJvmClass,
-                        method,
+                        methodName,
                         parameterTypesWithContinuation,
                         parameterValuesWithContinuation
                     )
@@ -111,9 +106,7 @@ internal class RemoteProcessCallBridgeInterceptor(
     ): Any? {
         val parameterTypeArray = parameterTypes.toTypedArray()
         val parameterValueArray = parameterValues.toTypedArray()
-        val method =
-            declaringJvmClass.getDeclaredMethod(methodName, *parameterTypeArray)
-        return this.block.invoke(declaringJvmClass, method, parameterTypeArray, parameterValueArray)
+        return this.block.invoke(declaringJvmClass, methodName, parameterTypeArray, parameterValueArray)
     }
 
     private fun invokeJavaMethod(
@@ -124,8 +117,6 @@ internal class RemoteProcessCallBridgeInterceptor(
     ): Any? {
         val parameterTypeArray = parameterTypes.toTypedArray()
         val parameterValueArray = parameterValues.toTypedArray()
-        val method =
-            declaringJvmClass.getDeclaredMethod(methodName, *parameterTypeArray)
-        return this.block.invoke(declaringJvmClass, method, parameterTypeArray, parameterValueArray)
+        return this.block.invoke(declaringJvmClass, methodName, parameterTypeArray, parameterValueArray)
     }
 }

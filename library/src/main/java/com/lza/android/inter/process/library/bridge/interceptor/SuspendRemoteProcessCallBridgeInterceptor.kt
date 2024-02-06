@@ -1,11 +1,10 @@
 package com.lza.android.inter.process.library.bridge.interceptor
 
+import com.lza.android.inter.process.library.bridge.parameter.ReflectionSuspendInvocationRequest
 import com.lza.android.inter.process.library.bridge.parameter.Request
-import com.lza.android.inter.process.library.bridge.parameter.SuspendInvocationRequest
 import com.lza.android.inter.process.library.interfaces.RemoteProcessSuspendCallback
 import com.lza.android.inter.process.library.stringTypeConvert
 import kotlinx.coroutines.Dispatchers
-import java.lang.reflect.Method
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.CoroutineContext
 
@@ -15,18 +14,18 @@ import kotlin.coroutines.CoroutineContext
  * @author liuzhongao
  * @since 2024/1/17 10:31
  */
-internal fun suspendRemoteProcessCallInterceptor(block: suspend (Class<*>, Method, Array<Class<*>>,Array<Any?>) -> Any?): BridgeInterceptor<Request> {
+internal fun suspendRemoteProcessCallInterceptor(block: suspend (Class<*>, String, Array<Class<*>>, Array<Any?>) -> Any?): BridgeInterceptor<Request> {
     return SuspendRemoteProcessCallBridgeInterceptor(block = block) as BridgeInterceptor<Request>
 }
 
 internal class SuspendRemoteProcessCallBridgeInterceptor(
     private val coroutineContext: CoroutineContext = Dispatchers.Default,
-    private val block: suspend (Class<*>, Method, Array<Class<*>>, Array<Any?>) -> Any?
-) : BridgeInterceptor<SuspendInvocationRequest> {
+    private val block: suspend (Class<*>, String, Array<Class<*>>, Array<Any?>) -> Any?
+) : BridgeInterceptor<ReflectionSuspendInvocationRequest> {
 
-    override fun shouldHandle(request: Request): Boolean = request is SuspendInvocationRequest
+    override fun shouldHandle(request: Request): Boolean = request is ReflectionSuspendInvocationRequest
 
-    override fun handle(request: SuspendInvocationRequest): Any? {
+    override fun handle(request: ReflectionSuspendInvocationRequest): Any? {
         val declaringJvmClass = Class.forName(request.interfaceClassName) as Class<Any>
         val parameterClassTypes = request.interfaceParameterTypes.stringTypeConvert
         return this.invokeKotlinSuspendFunction(
@@ -52,8 +51,7 @@ internal class SuspendRemoteProcessCallBridgeInterceptor(
         // suspend functions need Continuation instance to be the last parameter in parameter array.
         val parameterTypesWithContinuation = (parameterTypes + Continuation::class.java).toTypedArray()
         val parameterValuesWithoutContinuation = parameterValues.toTypedArray()
-        val functionInvocation = this.block.javaClass.getDeclaredMethod("invoke", Class::class.java, Method::class.java, parameterTypesWithContinuation.javaClass, parameterValuesWithoutContinuation.javaClass, Continuation::class.java)
-        val method = declaringJvmClass.getDeclaredMethod(methodName, *parameterTypesWithContinuation)
-        return functionInvocation.invoke(this.block, declaringJvmClass, method, parameterTypesWithContinuation, parameterValuesWithoutContinuation, continuation)
+        return (this.block as Function5<Class<*>, String, Array<Class<*>>, Array<Any?>, Continuation<Any?>, Any?>)
+            .invoke(declaringJvmClass, methodName, parameterTypesWithContinuation, parameterValuesWithoutContinuation, continuation)
     }
 }

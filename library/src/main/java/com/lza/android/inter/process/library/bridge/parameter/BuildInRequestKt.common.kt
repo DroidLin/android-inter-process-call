@@ -9,13 +9,14 @@ import com.lza.android.inter.process.library.interfaces.RemoteProcessSuspendCall
 import com.lza.android.inter.process.library.interfaces.binder
 import com.lza.android.inter.process.library.interfaces.bridgeInterface
 import com.lza.android.inter.process.library.interfaces.rpcInterface
+import java.io.Serializable
 
 /**
  * @author liuzhongao
  * @since 2024/1/12 00:23
  */
 
-internal class InvocationRequest(
+internal class ReflectionInvocationRequest(
     val interfaceClassName: String,
     val interfaceMethodName: String,
     val interfaceParameterTypes: List<String>,
@@ -28,20 +29,20 @@ internal class InvocationRequest(
         interfaceMethodName = parcel.readString() ?: "",
         interfaceParameterTypes = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ArrayList<String>().also { list ->
-                parcel.readList(list, InvocationRequest::class.java.classLoader, String::class.java)
+                parcel.readList(list, ReflectionInvocationRequest::class.java.classLoader, String::class.java)
             }
         } else {
             ArrayList<String>().also { list ->
-                parcel.readList(list, InvocationRequest::class.java.classLoader)
+                parcel.readList(list, ReflectionInvocationRequest::class.java.classLoader)
             }
         },
         interfaceParameters = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ArrayList<Any>().also { list ->
-                parcel.readList(list, InvocationRequest::class.java.classLoader, Any::class.java)
+                parcel.readList(list, ReflectionInvocationRequest::class.java.classLoader, Any::class.java)
             }
         } else {
             ArrayList<Any>().also { list ->
-                parcel.readList(list, InvocationRequest::class.java.classLoader)
+                parcel.readList(list, ReflectionInvocationRequest::class.java.classLoader)
             }
         },
         isKotlinFunction = parcel.readInt() == 1
@@ -63,12 +64,12 @@ internal class InvocationRequest(
         private const val serialVersionUID: Long = -5664921035843080976L
 
         @JvmField
-        val CREATOR = object : Parcelable.Creator<InvocationRequest> {
-            override fun createFromParcel(parcel: Parcel): InvocationRequest {
-                return InvocationRequest(parcel)
+        val CREATOR = object : Parcelable.Creator<ReflectionInvocationRequest> {
+            override fun createFromParcel(parcel: Parcel): ReflectionInvocationRequest {
+                return ReflectionInvocationRequest(parcel)
             }
 
-            override fun newArray(size: Int): Array<InvocationRequest?> {
+            override fun newArray(size: Int): Array<ReflectionInvocationRequest?> {
                 return arrayOfNulls(size)
             }
         }
@@ -154,7 +155,7 @@ internal data class CallbackRequest(
     }
 }
 
-internal class SuspendInvocationRequest(
+internal data class ReflectionSuspendInvocationRequest(
     val interfaceClassName: String,
     val interfaceMethodName: String,
     val interfaceParameterTypes: List<String>,
@@ -169,7 +170,7 @@ internal class SuspendInvocationRequest(
             ArrayList<String>().also { list ->
                 parcel.readList(
                     list,
-                    SuspendInvocationRequest::class.java.classLoader,
+                    ReflectionSuspendInvocationRequest::class.java.classLoader,
                     String::class.java
                 )
             }
@@ -177,7 +178,7 @@ internal class SuspendInvocationRequest(
             ArrayList<String>().also { list ->
                 parcel.readList(
                     list,
-                    SuspendInvocationRequest::class.java.classLoader
+                    ReflectionSuspendInvocationRequest::class.java.classLoader
                 )
             }
         },
@@ -185,7 +186,7 @@ internal class SuspendInvocationRequest(
             ArrayList<Any>().also { list ->
                 parcel.readList(
                     list,
-                    SuspendInvocationRequest::class.java.classLoader,
+                    ReflectionSuspendInvocationRequest::class.java.classLoader,
                     Any::class.java
                 )
             }
@@ -193,7 +194,7 @@ internal class SuspendInvocationRequest(
             ArrayList<Any>().also { list ->
                 parcel.readList(
                     list,
-                    SuspendInvocationRequest::class.java.classLoader
+                    ReflectionSuspendInvocationRequest::class.java.classLoader
                 )
             }
         },
@@ -218,12 +219,116 @@ internal class SuspendInvocationRequest(
         private const val serialVersionUID: Long = -5664921035843080976L
 
         @JvmField
-        val CREATOR = object : Parcelable.Creator<SuspendInvocationRequest> {
-            override fun createFromParcel(parcel: Parcel): SuspendInvocationRequest {
-                return SuspendInvocationRequest(parcel)
+        val CREATOR = object : Parcelable.Creator<ReflectionSuspendInvocationRequest> {
+            override fun createFromParcel(parcel: Parcel): ReflectionSuspendInvocationRequest {
+                return ReflectionSuspendInvocationRequest(parcel)
             }
 
-            override fun newArray(size: Int): Array<SuspendInvocationRequest?> {
+            override fun newArray(size: Int): Array<ReflectionSuspendInvocationRequest?> {
+                return arrayOfNulls(size)
+            }
+        }
+    }
+}
+
+internal data class DirectInvocationRequest(
+    val interfaceClassName: String,
+    val interfaceMethodName: String,
+    val interfaceParameters: List<Any?>,
+) : Request, Parcelable, Serializable {
+
+    constructor(parcel: Parcel) : this(
+        interfaceClassName = requireNotNull(parcel.readString()),
+        interfaceMethodName = requireNotNull(parcel.readString()),
+        interfaceParameters = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ArrayList<Any>().also { list ->
+                parcel.readList(list, DirectInvocationRequest::class.java.classLoader, Any::class.java)
+            }
+        } else {
+            ArrayList<Any>().also { list ->
+                parcel.readList(list, DirectInvocationRequest::class.java.classLoader)
+            }
+        }
+    )
+
+    override fun writeToParcel(parcel: Parcel, flags: Int) {
+        parcel.writeString(this.interfaceClassName)
+        parcel.writeString(this.interfaceMethodName)
+        parcel.writeList(this.interfaceParameters)
+    }
+
+    override fun describeContents(): Int {
+        return 0
+    }
+
+    companion object {
+        private const val serialVersionUID: Long = -4844349218410633780L
+
+        @JvmField
+        val CREATOR = object : Parcelable.Creator<DirectInvocationRequest> {
+            override fun createFromParcel(parcel: Parcel): DirectInvocationRequest {
+                return DirectInvocationRequest(parcel)
+            }
+
+            override fun newArray(size: Int): Array<DirectInvocationRequest?> {
+                return arrayOfNulls(size)
+            }
+        }
+    }
+}
+
+internal data class DirectSuspendInvocationRequest(
+    val interfaceClassName: String,
+    val interfaceMethodName: String,
+    val interfaceParameters: List<Any?>,
+    val remoteProcessSuspendCallback: RemoteProcessSuspendCallback
+) : Request, Parcelable {
+
+    constructor(parcel: Parcel) : this(
+        interfaceClassName = parcel.readString() ?: "",
+        interfaceMethodName = parcel.readString() ?: "",
+        interfaceParameters = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ArrayList<Any>().also { list ->
+                parcel.readList(
+                    list,
+                    DirectSuspendInvocationRequest::class.java.classLoader,
+                    Any::class.java
+                )
+            }
+        } else {
+            ArrayList<Any>().also { list ->
+                parcel.readList(
+                    list,
+                    DirectSuspendInvocationRequest::class.java.classLoader
+                )
+            }
+        },
+        remoteProcessSuspendCallback = RemoteProcessSuspendCallback.asInterface(
+            parcel.readStrongBinder()
+        )
+    )
+
+    override fun writeToParcel(parcel: Parcel, flags: Int) {
+        parcel.writeString(this.interfaceClassName)
+        parcel.writeString(this.interfaceMethodName)
+        parcel.writeList(this.interfaceParameters)
+        parcel.writeStrongBinder(this.remoteProcessSuspendCallback.remoteProcessCallInterface.binder)
+    }
+
+    override fun describeContents(): Int {
+        return 0
+    }
+
+    companion object {
+        private const val serialVersionUID: Long = -5664921035843080976L
+
+        @JvmField
+        val CREATOR = object : Parcelable.Creator<DirectSuspendInvocationRequest> {
+            override fun createFromParcel(parcel: Parcel): DirectSuspendInvocationRequest {
+                return DirectSuspendInvocationRequest(parcel)
+            }
+
+            override fun newArray(size: Int): Array<DirectSuspendInvocationRequest?> {
                 return arrayOfNulls(size)
             }
         }

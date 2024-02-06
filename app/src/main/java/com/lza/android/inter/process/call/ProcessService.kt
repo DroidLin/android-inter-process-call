@@ -1,16 +1,22 @@
 package com.lza.android.inter.process.call
 
+import com.lza.android.inter.process.annotation.RemoteProcessInterface
 import com.lza.android.inter.process.library.interfaces.IPCNoProguard
 
 /**
  * @author liuzhongao
  * @since 2024/1/14 23:41
  */
+@RemoteProcessInterface
 interface ProcessService : IPCNoProguard {
 
     val processName: String
 
     val processNameNull: String? get() = null
+
+    val String.interfaceKey: String? get() = null
+
+    val String?.interfaceKeyNullable: String? get() = null
 
     fun getProcessInfo(): String?
 
@@ -26,11 +32,23 @@ interface ProcessService : IPCNoProguard {
 
     suspend fun String.calculateStringCount(): Int
 
+    fun String.calculateStringCount(path: String, arrayParameter: Array<String?>?): Int = 0
+
     fun testFunctionNoReturn() {}
 
     suspend fun suspendTestFunctionNoReturn() {}
 
-    fun testThrowable() { throw NullPointerException() }
+    fun testThrowable() {
+        throw NullPointerException()
+    }
 
-    suspend fun suspendTestThrowable() { throw NullPointerException() }
+    suspend fun suspendTestThrowable() {
+        throw NullPointerException()
+    }
+
+    fun parameterNullableTestFunction(path: String?) {}
+
+    fun varargParameterTestFunction(vararg path: String?) {}
+
+    fun suspendArrayParameterTestFunction(arrayParameter: Array<String>): Array<Int> = emptyArray()
 }

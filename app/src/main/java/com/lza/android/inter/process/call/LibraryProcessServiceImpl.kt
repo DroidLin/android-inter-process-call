@@ -1,5 +1,8 @@
 package com.lza.android.inter.process.call
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
 /**
  * @author liuzhongao
  * @since 2024/1/14 23:42
@@ -17,7 +20,7 @@ object LibraryProcessServiceImpl : ProcessService {
     }
 
     override suspend fun suspendTestFunction(path: String, parameters: Int): String {
-        return "${TestApplication.application.getCurrentProcessName()}/${path}/$parameters"
+        return withContext(Dispatchers.IO) { "${TestApplication.application.getCurrentProcessName()}/${path}/$parameters" }
     }
 
     override suspend fun suspendPostDataToRemote(arrayParameter: Array<String>): Array<Int> {

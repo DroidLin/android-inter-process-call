@@ -1,18 +1,24 @@
 package com.lza.android.inter.process.library.interfaces
 
+import com.lza.android.inter.process.library.ProcessCenter
 import com.lza.android.inter.process.library.ProcessImplementationCenter
+import com.lza.android.inter.process.library.bridge.interceptor.directRemoteProcessCallBridgeInterceptor
+import com.lza.android.inter.process.library.bridge.interceptor.directSuspendRemoteProcessCallBridgeInterceptor
 import com.lza.android.inter.process.library.bridge.interceptor.handShakeBridgeInterceptor
 import com.lza.android.inter.process.library.bridge.interceptor.remoteProcessCallInterceptor
 import com.lza.android.inter.process.library.bridge.interceptor.suspendRemoteProcessCallInterceptor
+import com.lza.android.inter.process.library.bridge.parameter.DirectInvocationRequest
+import com.lza.android.inter.process.library.bridge.parameter.DirectSuspendInvocationRequest
 import com.lza.android.inter.process.library.bridge.parameter.HandShakeRequest
 import com.lza.android.inter.process.library.bridge.parameter.InternalInvocationFailureResponse
-import com.lza.android.inter.process.library.bridge.parameter.InvocationRequest
 import com.lza.android.inter.process.library.bridge.parameter.InvocationResponse
-import com.lza.android.inter.process.library.bridge.parameter.SuspendInvocationRequest
+import com.lza.android.inter.process.library.bridge.parameter.ReflectionInvocationRequest
+import com.lza.android.inter.process.library.bridge.parameter.ReflectionSuspendInvocationRequest
+import com.lza.android.inter.process.library.bridge.parameter.Request
 import com.lza.android.inter.process.library.invokeSuspend
 import com.lza.android.inter.process.library.kotlin.OneShotContinuation
 import com.lza.android.inter.process.library.safeUnbox
-import java.lang.reflect.Method
+import kotlin.coroutines.Continuation
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
 import kotlin.coroutines.resume
@@ -48,16 +54,28 @@ internal sealed interface ProcessBasicInterface {
 
     fun unlinkToDeath(deathRecipient: RemoteProcessCallInterface.DeathRecipient) {}
 
+    fun invokeDirectRemoteFunction(
+        declaringClassName: String,
+        functionName: String,
+        args: List<Any?>
+    ): Any? = null
+
+    suspend fun invokeDirectRemoteSuspendFunction(
+        declaringClassName: String,
+        functionName: String,
+        args: List<Any?>
+    ): Any? = null
+
     fun invokeRemoteProcessMethod(
         declaringClass: Class<*>,
-        method: Method,
+        methodName: String,
         argTypes: Array<Class<*>>,
         args: Array<Any?>,
     ): Any? = null
 
     suspend fun invokeSuspendRemoteProcessMethod(
         declaringClass: Class<*>,
-        method: Method,
+        methodName: String,
         argTypes: Array<Class<*>>,
         args: Array<Any?>,
     ): Any? = null
@@ -79,27 +97,53 @@ internal sealed interface ProcessBasicInterface {
             this.bridgeInterface += handShakeBridgeInterceptor { processKey, basicInterface ->
                 this.onReceiveBinder(processKey, basicInterface)
             }
-            this.bridgeInterface += remoteProcessCallInterceptor { clazz, method, argTypes, args ->
-                this.invokeRemoteProcessMethod(declaringClass = clazz, method = method, argTypes = argTypes, args = args)
+            this.bridgeInterface += remoteProcessCallInterceptor { clazz, methodName, argTypes, args ->
+                this.invokeRemoteProcessMethod(declaringClass = clazz, methodName = methodName, argTypes = argTypes, args = args)
             }
-            this.bridgeInterface += suspendRemoteProcessCallInterceptor { clazz, method, argTypes, args ->
-                this.invokeSuspendRemoteProcessMethod(declaringClass = clazz, method = method, argTypes = argTypes, args = args)
+            this.bridgeInterface += suspendRemoteProcessCallInterceptor { clazz, methodName, argTypes, args ->
+                this.invokeSuspendRemoteProcessMethod(declaringClass = clazz, methodName = methodName, argTypes = argTypes, args = args)
             }
+            this.bridgeInterface += directRemoteProcessCallBridgeInterceptor { className, functionName, args ->
+                this.invokeDirectRemoteFunction(className, functionName, args)
+            }
+            this.bridgeInterface += directSuspendRemoteProcessCallBridgeInterceptor { className, functionName, args ->
+                this.invokeDirectRemoteSuspendFunction(className, functionName, args)
+            }
+        }
+
+        override fun invokeDirectRemoteFunction(
+            declaringClassName: String,
+            functionName: String,
+            args: List<Any?>
+        ): Any? {
+            val directAccessImpl = ProcessCenter.getOrGeneratedStubFunction(className = declaringClassName)
+            return directAccessImpl.invokeNonSuspendFunction(functionName, args).safeUnbox()
+        }
+
+        override suspend fun invokeDirectRemoteSuspendFunction(
+            declaringClassName: String,
+            functionName: String,
+            args: List<Any?>
+        ): Any? {
+            val directAccessImpl = ProcessCenter.getOrGeneratedStubFunction(className = declaringClassName)
+            return directAccessImpl.invokeSuspendFunction(functionName, args).safeUnbox()
         }
 
         override fun invokeRemoteProcessMethod(
             declaringClass: Class<*>,
-            method: Method,
+            methodName: String,
             argTypes: Array<Class<*>>,
             args: Array<Any?>
-        ): Any? = method.invoke(ProcessImplementationCenter[declaringClass], *args).safeUnbox()
+        ): Any? = declaringClass.getDeclaredMethod(methodName, *argTypes)
+            .invoke(ProcessImplementationCenter[declaringClass], *args).safeUnbox()
 
         override suspend fun invokeSuspendRemoteProcessMethod(
             declaringClass: Class<*>,
-            method: Method,
+            methodName: String,
             argTypes: Array<Class<*>>,
             args: Array<Any?>
-        ): Any? = method.invokeSuspend(ProcessImplementationCenter[declaringClass], *args).safeUnbox()
+        ): Any? = declaringClass.getDeclaredMethod(methodName, *argTypes)
+            .invokeSuspend(ProcessImplementationCenter[declaringClass], *args).safeUnbox()
     }
 
     class Proxy(val remoteBridgeInterface: RemoteProcessCallInterface) : ProcessBasicInterface {
@@ -118,19 +162,75 @@ internal sealed interface ProcessBasicInterface {
             this.remoteBridgeInterface.invoke(request = HandShakeRequest(processKey, basicInterface))
         }
 
+        override fun invokeDirectRemoteFunction(
+            declaringClassName: String,
+            functionName: String,
+            args: List<Any?>
+        ): Any? {
+            return this.invokeRemoteNonSuspendFunction {
+                DirectInvocationRequest(
+                    interfaceClassName = declaringClassName,
+                    interfaceMethodName = functionName,
+                    interfaceParameters = args
+                )
+            }
+        }
+
+        override suspend fun invokeDirectRemoteSuspendFunction(
+            declaringClassName: String,
+            functionName: String,
+            args: List<Any?>
+        ): Any? {
+            return suspendCoroutineUninterceptedOrReturn { continuation ->
+                this.invokeRemoteSuspendFunction(continuation) { suspendCallback ->
+                    DirectSuspendInvocationRequest(
+                        interfaceClassName = declaringClassName,
+                        interfaceMethodName = functionName,
+                        interfaceParameters = args,
+                        remoteProcessSuspendCallback = suspendCallback
+                    )
+                }
+            }
+        }
+
         override fun invokeRemoteProcessMethod(
             declaringClass: Class<*>,
-            method: Method,
+            methodName: String,
             argTypes: Array<Class<*>>,
             args: Array<Any?>
         ): Any? {
-            val request = InvocationRequest(
-                interfaceClassName = declaringClass.name,
-                interfaceMethodName = method.name,
-                interfaceParameterTypes = argTypes.map { it.name },
-                interfaceParameters = args.toList(),
-                isKotlinFunction = true
-            )
+            return this.invokeRemoteNonSuspendFunction {
+                ReflectionInvocationRequest(
+                    interfaceClassName = declaringClass.name,
+                    interfaceMethodName = methodName,
+                    interfaceParameterTypes = argTypes.map { it.name },
+                    interfaceParameters = args.toList(),
+                    isKotlinFunction = true
+                )
+            }
+        }
+
+        override suspend fun invokeSuspendRemoteProcessMethod(
+            declaringClass: Class<*>,
+            methodName: String,
+            argTypes: Array<Class<*>>,
+            args: Array<Any?>
+        ): Any? {
+            return suspendCoroutineUninterceptedOrReturn { continuation ->
+                this.invokeRemoteSuspendFunction(continuation) { suspendCallback ->
+                    ReflectionSuspendInvocationRequest(
+                        interfaceClassName = declaringClass.name,
+                        interfaceMethodName = methodName,
+                        interfaceParameterTypes = argTypes.map { it.name },
+                        interfaceParameters = args.toList(),
+                        remoteProcessSuspendCallback = suspendCallback
+                    )
+                }
+            }
+        }
+
+        private inline fun invokeRemoteNonSuspendFunction(binderRequestBuilder: () -> Request): Any? {
+            val request = binderRequestBuilder()
             return when (val response = this.remoteBridgeInterface.invoke(request = request)) {
                 // for synchronized invocation, throw the remote exception in current
                 // call stack is the best choice.
@@ -148,52 +248,42 @@ internal sealed interface ProcessBasicInterface {
             }
         }
 
-        override suspend fun invokeSuspendRemoteProcessMethod(
-            declaringClass: Class<*>,
-            method: Method,
-            argTypes: Array<Class<*>>,
-            args: Array<Any?>
+        private inline fun invokeRemoteSuspendFunction(
+            continuation: Continuation<Any?>,
+            binderRequestBuilder: (RemoteProcessSuspendCallback) -> Request
         ): Any? {
-            return suspendCoroutineUninterceptedOrReturn { continuation ->
-                val continuationProxy = OneShotContinuation(continuation)
-                val deathRecipient = object : RemoteProcessCallInterface.DeathRecipient {
-                    override fun binderDead() {
-                        this@Proxy.unlinkToDeath(deathRecipient = this)
-                        // returns null to handle backup logic.
-                        continuationProxy.resume(null)
-                    }
+            val continuationProxy = OneShotContinuation(continuation)
+            val deathRecipient = object : RemoteProcessCallInterface.DeathRecipient {
+                override fun binderDead() {
+                    this@Proxy.unlinkToDeath(deathRecipient = this)
+                    // returns null to handle backup logic.
+                    continuationProxy.resume(null)
                 }
-                val suspendCallback = object : RemoteProcessSuspendCallback.Stub() {
-                    override fun callbackSuspend(data: Any?, throwable: Throwable?) {
-                        this@Proxy.unlinkToDeath(deathRecipient = deathRecipient)
-                        if (throwable != null) {
-                            continuationProxy.resumeWithException(Throwable(throwable))
-                        } else continuationProxy.resume(data)
-                    }
+            }
+            val suspendCallback = object : RemoteProcessSuspendCallback.Stub() {
+                override fun callbackSuspend(data: Any?, throwable: Throwable?) {
+                    this@Proxy.unlinkToDeath(deathRecipient = deathRecipient)
+                    if (throwable != null) {
+                        continuationProxy.resumeWithException(Throwable(throwable))
+                    } else continuationProxy.resume(data)
                 }
-                val request = SuspendInvocationRequest(
-                    interfaceClassName = declaringClass.name,
-                    interfaceMethodName = method.name,
-                    interfaceParameterTypes = argTypes.map { it.name },
-                    interfaceParameters = args.toList(),
-                    remoteProcessSuspendCallback = suspendCallback
-                )
-                this.linkToDeath(deathRecipient = deathRecipient)
-                when (val response = this.remoteBridgeInterface.invoke(request = request)) {
-                    // while binder disconnected, try to suspend current function
-                    // to wait for [RemoteProcessCallInterface.DeathRecipient] invocation
-                    is InternalInvocationFailureResponse -> COROUTINE_SUSPENDED
-                    // most common response instance from remote.
-                    is InvocationResponse -> {
-                        // should clear reference of deathRecipient to prevent memory leak.
-                        this.unlinkToDeath(deathRecipient = deathRecipient)
-                        if (response.throwable != null) {
-                            throw Throwable(response.throwable)
-                        }
-                        response.responseObject
+            }
+            val request = binderRequestBuilder(suspendCallback)
+            this.linkToDeath(deathRecipient = deathRecipient)
+            return when (val response = this.remoteBridgeInterface.invoke(request = request)) {
+                // while binder disconnected, try to suspend current function
+                // to wait for [RemoteProcessCallInterface.DeathRecipient] invocation
+                is InternalInvocationFailureResponse -> COROUTINE_SUSPENDED
+                // most common response instance from remote.
+                is InvocationResponse -> {
+                    // should clear reference of deathRecipient to prevent memory leak.
+                    this.unlinkToDeath(deathRecipient = deathRecipient)
+                    if (response.throwable != null) {
+                        throw Throwable(response.throwable)
                     }
-                    else -> throw UnsupportedOperationException("unSupported ResponseType: ${response?.javaClass}")
+                    response.responseObject
                 }
+                else -> throw UnsupportedOperationException("unSupported ResponseType: ${response?.javaClass}")
             }
         }
     }
