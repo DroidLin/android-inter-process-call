@@ -31,7 +31,7 @@ internal class DirectSuspendRemoteProcessCallBridgeInterceptor(
             override fun resumeWith(result: Result<Any?>) { suspendCallback.callbackSuspend(data = result.getOrNull(), throwable = result.exceptionOrNull()) }
         }
         val oneShotContinuation = OneShotContinuation(continuation)
-        return (this.block::invoke as Function4<String, String, List<Any?>, Continuation<Any?>, Any?>)
+        return (this.block as Function4<String, String, List<Any?>, Continuation<Any?>, Any?>)
             .invoke(request.interfaceClassName, request.interfaceMethodName, request.interfaceParameters, oneShotContinuation)
     }
 }
