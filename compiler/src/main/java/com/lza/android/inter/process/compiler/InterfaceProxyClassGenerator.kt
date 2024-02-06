@@ -275,7 +275,7 @@ internal object InterfaceProxyClassGenerator {
             .appendLine("\t\t}")
             .appendLine("\t\tval data = result.getOrNull()")
             .appendLine("\t\tif (data != null) {")
-            .appendLine("\t\t\treturn null")
+            .appendLine("\t\t\treturn data")
             .appendLine("\t\t}")
             .appendLine("\t\treturn null")
             .appendLine("\t}")

@@ -87,9 +87,10 @@ suspend fun <T : Any> invokeDirectSuspendKotlinFunction(
     if (basicInterface == null || !basicInterface.isStillAlive) {
         return null
     }
-    return basicInterface.invokeDirectRemoteSuspendFunction(
+    val data = basicInterface.invokeDirectRemoteSuspendFunction(
         declaringClassName = declaringClassName,
         functionName = functionName,
         args = functionParameters
     ) as? T
+    return data
 }
