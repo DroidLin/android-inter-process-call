@@ -205,7 +205,7 @@ class ProcessInvocationHandle(
 
     private fun isExceptionHandled(throwable: Throwable?): Boolean {
         throwable ?: return true
-        return this.exceptionHandler?.handleException(throwable = null) ?: false
+        return this.exceptionHandler?.handleException(throwable = throwable) ?: false
     }
 
     companion object {

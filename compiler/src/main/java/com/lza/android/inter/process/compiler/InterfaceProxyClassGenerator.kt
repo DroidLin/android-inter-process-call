@@ -7,6 +7,7 @@ import com.google.devtools.ksp.isOpen
 import com.google.devtools.ksp.isProtected
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.Dependencies
+import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
@@ -22,10 +23,12 @@ internal object InterfaceProxyClassGenerator {
 
     @JvmStatic
     fun buildInterfaceProxyImplementationClass(
+        resolver: Resolver,
         codeGenerator: CodeGenerator,
         interfaceClassDeclaration: KSClassDeclaration
     ) {
         this.buildInterfaceCallerProxyImplementationClass(
+            resolver = resolver,
             codeGenerator = codeGenerator,
             interfaceClassDeclaration = interfaceClassDeclaration
         )
@@ -36,12 +39,14 @@ internal object InterfaceProxyClassGenerator {
      */
     @JvmStatic
     private fun buildInterfaceCallerProxyImplementationClass(
+        resolver: Resolver,
         codeGenerator: CodeGenerator,
         interfaceClassDeclaration: KSClassDeclaration
     ) {
         require(interfaceClassDeclaration.classKind == ClassKind.INTERFACE) {
             "annotation requires ${interfaceClassDeclaration.qualifiedName?.asString() ?: ""} declared as interface"
         }
+
         val implClassName = "${interfaceClassDeclaration.simpleName.asString()}_Generated_Proxy"
         val writer = codeGenerator.createNewFile(
             dependencies = Dependencies(
@@ -68,6 +73,7 @@ internal object InterfaceProxyClassGenerator {
                         functionDeclaration = functionDeclaration
                     ) { this.buildFunctionBody(implClassName, writer, functionDeclaration)}
                 }
+            buildExceptionHandlerRunCatchingFunction(writer)
         }
         writer.flush()
         writer.close()
@@ -133,14 +139,16 @@ internal object InterfaceProxyClassGenerator {
         propertyDeclaration: KSPropertyDeclaration
     ) {
         writer
-            .appendLine("\t\t\tval data = com.lza.android.inter.process.library.invokeDirectProperty<${buildType(propertyDeclaration.type.resolve(), false)}>(")
-            .appendLine("\t\t\t\tcoroutineContext = this@${className}.coroutineContext,")
-            .appendLine("\t\t\t\tandroidContext = this@${className}.context,")
-            .appendLine("\t\t\t\tcurrentProcessKey = this@${className}.currentProcessKey,")
-            .appendLine("\t\t\t\tdestinationProcessKey = this@${className}.destinationProcessKey,")
-            .appendLine("\t\t\t\tdeclaringClassName = \"${requireNotNull(propertyDeclaration.parentDeclaration?.qualifiedName).asString()}\",")
-            .appendLine("\t\t\t\tpropertyName = \"${buildPropertyUniqueKey(propertyDeclaration)}\"")
-            .appendLine("\t\t\t)")
+            .appendLine("\t\t\tval data = this@${className}.runWithExceptionHandle {")
+            .appendLine("\t\t\t\tcom.lza.android.inter.process.library.invokeDirectProperty<${buildType(propertyDeclaration.type.resolve(), false)}>(")
+            .appendLine("\t\t\t\t\tcoroutineContext = this@${className}.coroutineContext,")
+            .appendLine("\t\t\t\t\tandroidContext = this@${className}.context,")
+            .appendLine("\t\t\t\t\tcurrentProcessKey = this@${className}.currentProcessKey,")
+            .appendLine("\t\t\t\t\tdestinationProcessKey = this@${className}.destinationProcessKey,")
+            .appendLine("\t\t\t\t\tdeclaringClassName = \"${requireNotNull(propertyDeclaration.parentDeclaration?.qualifiedName).asString()}\",")
+            .appendLine("\t\t\t\t\tpropertyName = \"${buildPropertyUniqueKey(propertyDeclaration)}\"")
+            .appendLine("\t\t\t\t)")
+            .appendLine("\t\t\t}")
             .appendLine("\t\t\tif (data != null) {")
             .appendLine("\t\t\t\treturn data")
             .appendLine("\t\t\t}")
@@ -197,34 +205,86 @@ internal object InterfaceProxyClassGenerator {
         writer: Writer,
         functionDeclaration: KSFunctionDeclaration
     ) {
+        val functionReturnType = requireNotNull(functionDeclaration.returnType?.resolve())
+        val hasReturnValue = functionReturnType.declaration.simpleName.asString() != "Unit"
         writer
             .apply {
+                if (hasReturnValue) {
+                    appendLine("\t\tvar data = this@${className}.runWithExceptionHandle {")
+                } else appendLine("\t\tthis@${className}.runWithExceptionHandle {")
                 if (functionDeclaration.modifiers.contains(Modifier.SUSPEND)) {
-                    appendLine("\t\tval data = com.lza.android.inter.process.library.invokeDirectSuspendKotlinFunction<${buildType(requireNotNull(functionDeclaration.returnType).resolve(), false)}>(")
+                    appendLine("\t\t\tcom.lza.android.inter.process.library.invokeDirectSuspendKotlinFunction<${buildType(functionReturnType, false)}>(")
                 } else {
-                    appendLine("\t\tval data = com.lza.android.inter.process.library.invokeDirectKotlinFunction<${buildType(requireNotNull(functionDeclaration.returnType).resolve(), false)}>(")
-                    appendLine("\t\t\tcoroutineContext = this@${className}.coroutineContext,")
+                    appendLine("\t\t\tcom.lza.android.inter.process.library.invokeDirectKotlinFunction<${buildType(functionReturnType, false)}>(")
+                    appendLine("\t\t\t\tcoroutineContext = this@${className}.coroutineContext,")
                 }
-                appendLine("\t\t\tandroidContext = this@${className}.context,")
-                    .appendLine("\t\t\tcurrentProcessKey = this@${className}.currentProcessKey,")
-                    .appendLine("\t\t\tdestinationProcessKey = this@${className}.destinationProcessKey,")
-                    .appendLine("\t\t\tdeclaringClassName = \"${requireNotNull(functionDeclaration.parentDeclaration?.qualifiedName).asString()}\",")
-                    .appendLine("\t\t\tfunctionName = \"${buildFunctionUniqueKey(functionDeclaration)}\",")
-                    .appendLine("\t\t\tfunctionParameters = kotlin.collections.listOf(${buildFunctionCallParameter(functionDeclaration)}),")
-                    .appendLine("\t\t)")
-                    .appendLine("\t\tif (data != null) {")
-                    .appendLine("\t\t\treturn data")
+                    .appendLine("\t\t\t\tandroidContext = this@${className}.context,")
+                    .appendLine("\t\t\t\tcurrentProcessKey = this@${className}.currentProcessKey,")
+                    .appendLine("\t\t\t\tdestinationProcessKey = this@${className}.destinationProcessKey,")
+                    .appendLine("\t\t\t\tdeclaringClassName = \"${requireNotNull(functionDeclaration.parentDeclaration?.qualifiedName).asString()}\",")
+                    .appendLine("\t\t\t\tfunctionName = \"${buildFunctionUniqueKey(functionDeclaration)}\",")
+                    .appendLine("\t\t\t\tfunctionParameters = kotlin.collections.listOf(${buildFunctionCallParameter(functionDeclaration)}),")
+                    .appendLine("\t\t\t)")
                     .appendLine("\t\t}")
+                    .apply {
+                        if (hasReturnValue) {
+                            appendLine("\t\tif (data != null) {")
+                            appendLine("\t\t\treturn data")
+                            appendLine("\t\t}")
+                        }
+                    }
             }
-            .appendLine("\t\tif (this@${className}.interfaceDefaultImpl != null) {")
             .apply {
+                if (!hasReturnValue) {
+                    return@apply
+                }
+                appendLine("\t\tif (this@${className}.interfaceDefaultImpl != null) {")
+                if (functionReturnType.isMarkedNullable) {
+                    append("\t\t\tdata = ")
+                } else if (!functionReturnType.isMarkedNullable) {
+                    append("\t\t\treturn ")
+                } else append("\t\t\t")
                 if (functionDeclaration.extensionReceiver != null) {
-                    appendLine("\t\t\treturn this@${className}.interfaceDefaultImpl.run { ${functionDeclaration.simpleName.asString()}(${buildFunctionCallParameter(functionDeclaration)}) }")
+                    appendLine("this@${className}.interfaceDefaultImpl.run { ${functionDeclaration.simpleName.asString()}(${buildFunctionCallParameter(functionDeclaration)}) }")
                 } else {
-                    appendLine("\t\t\treturn this@${className}.interfaceDefaultImpl.${functionDeclaration.simpleName.asString()}(${buildFunctionCallParameter(functionDeclaration)})")
+                    appendLine("this@${className}.interfaceDefaultImpl.${functionDeclaration.simpleName.asString()}(${buildFunctionCallParameter(functionDeclaration)})")
+                }
+                appendLine("\t\t}")
+            }
+            .apply {
+                if (functionReturnType.isMarkedNullable) {
+                    appendLine("\t\treturn data")
+                }
+                if (hasReturnValue && !functionReturnType.isMarkedNullable) {
+                    appendLine("\t\tthrow kotlin.IllegalArgumentException(\"function return type requires non-null type, but returns null type after IPC call and the fallback operation!! please check.\")")
                 }
             }
-            .appendLine("\t\t}")
-            .appendLine("\t\tthrow kotlin.IllegalArgumentException(\"function return type requires non-null type, but returns null type after IPC call and the fallback operation!! please check.\")")
     }
+
+    @JvmStatic
+    private fun buildExceptionHandlerRunCatchingFunction(writer: Writer) {
+        writer.appendLine()
+            .appendLine("\tprivate inline fun <T : Any> runWithExceptionHandle(block: () -> T?): T? {")
+            .appendLine("\t\tval result = kotlin.runCatching(block)")
+            .appendLine("\t\tval throwable = result.exceptionOrNull()")
+            .appendLine("\t\tif (result.isFailure && throwable != null) {")
+            .appendLine("\t\t\tif (this.isExceptionHandled(throwable)) {")
+            .appendLine("\t\t\t\treturn null")
+            .appendLine("\t\t\t}")
+            .appendLine("\t\t\tthrow com.lza.android.inter.process.library.kotlin.UnHandledRuntimeException(throwable)")
+            .appendLine("\t\t}")
+            .appendLine("\t\tval data = result.getOrNull()")
+            .appendLine("\t\tif (data != null) {")
+            .appendLine("\t\t\treturn null")
+            .appendLine("\t\t}")
+            .appendLine("\t\treturn null")
+            .appendLine("\t}")
+
+        writer.appendLine()
+            .appendLine("\tprivate fun isExceptionHandled(throwable: Throwable?): Boolean {")
+            .appendLine("\t\tthrowable ?: return true")
+            .appendLine("\t\treturn this.exceptionHandler?.handleException(throwable = throwable) ?: false")
+            .appendLine("\t}")
+    }
+
 }

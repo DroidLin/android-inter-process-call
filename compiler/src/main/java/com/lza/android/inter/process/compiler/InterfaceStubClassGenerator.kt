@@ -85,34 +85,38 @@ internal object InterfaceStubClassGenerator {
         writer.appendLine()
             .appendLine("\toverride fun invokeNonSuspendFunction(functionName: String, functionParameter: List<Any?>): Any? {")
             .apply {
-                appendLine("\t\treturn when (functionName) {")
                 val nonSuspendMemberDeclaration = (interfaceClassDeclaration.getDeclaredProperties() +
-                        interfaceClassDeclaration.getDeclaredFunctions()
-                            .filter { !it.modifiers.contains(Modifier.SUSPEND) })
-                nonSuspendMemberDeclaration.forEach { ksDeclaration ->
-                    when (ksDeclaration) {
-                        is KSPropertyDeclaration -> {
-                            appendLine("\t\t\t\"${buildPropertyUniqueKey(ksDeclaration)}\" -> ${buildPropertyInvocationCode(ksDeclaration)}")
-                        }
-                        is KSFunctionDeclaration -> {
-                            appendLine("\t\t\t\"${buildFunctionUniqueKey(ksDeclaration)}\" -> ${buildFunctionInvocationCode(ksDeclaration)}")
+                        interfaceClassDeclaration.getDeclaredFunctions().filter { !it.modifiers.contains(Modifier.SUSPEND) }).toList()
+                if (nonSuspendMemberDeclaration.isNotEmpty()) {
+                    appendLine("\t\treturn when (functionName) {")
+                    nonSuspendMemberDeclaration.forEach { ksDeclaration ->
+                        when (ksDeclaration) {
+                            is KSPropertyDeclaration -> {
+                                appendLine("\t\t\t\"${buildPropertyUniqueKey(ksDeclaration)}\" -> ${buildPropertyInvocationCode(ksDeclaration)}")
+                            }
+                            is KSFunctionDeclaration -> {
+                                appendLine("\t\t\t\"${buildFunctionUniqueKey(ksDeclaration)}\" -> ${buildFunctionInvocationCode(ksDeclaration)}")
+                            }
                         }
                     }
-                }
-                appendLine("\t\t\telse -> null")
-                appendLine("\t\t}")
+                    appendLine("\t\t\telse -> null")
+                    appendLine("\t\t}")
+                } else appendLine("\t\treturn null")
             }
             .appendLine("\t}")
             .appendLine()
             .appendLine("\toverride suspend fun invokeSuspendFunction(functionName: String, functionParameter: List<Any?>): Any? {")
             .apply {
-                appendLine("\t\treturn when (functionName) {")
-                interfaceClassDeclaration.getDeclaredFunctions().filter { it.modifiers.contains(Modifier.SUSPEND) }
-                    .forEach { ksFunctionDeclaration ->
-                        appendLine("\t\t\t\"${buildFunctionUniqueKey(ksFunctionDeclaration)}\" -> ${buildFunctionInvocationCode(ksFunctionDeclaration)}")
-                    }
-                appendLine("\t\t\telse -> null")
-                appendLine("\t\t}")
+                val suspendFunctionDeclarations = interfaceClassDeclaration.getDeclaredFunctions().filter { it.modifiers.contains(Modifier.SUSPEND) }.toList()
+                if (suspendFunctionDeclarations.isNotEmpty()) {
+                    appendLine("\t\treturn when (functionName) {")
+                    interfaceClassDeclaration.getDeclaredFunctions().filter { it.modifiers.contains(Modifier.SUSPEND) }
+                        .forEach { ksFunctionDeclaration ->
+                            appendLine("\t\t\t\"${buildFunctionUniqueKey(ksFunctionDeclaration)}\" -> ${buildFunctionInvocationCode(ksFunctionDeclaration)}")
+                        }
+                    appendLine("\t\t\telse -> null")
+                    appendLine("\t\t}")
+                } else appendLine("\t\treturn null")
             }
             .appendLine("\t}")
     }

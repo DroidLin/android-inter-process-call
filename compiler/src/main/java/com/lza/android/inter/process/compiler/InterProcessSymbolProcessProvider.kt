@@ -32,22 +32,21 @@ class InterProcessSymbolProcessProvider : SymbolProcessorProvider {
                     findKSClassDeclaration(
                         resolver = resolver,
                         annotationClass = RemoteProcessInterface::class.java
-                    ).map { annotatedClassDeclaration ->
-                        this@InterProcessSymbolProcessProvider.coroutineScope.async {
-                            InterfaceProxyClassGenerator.buildInterfaceProxyImplementationClass(
-                                codeGenerator = environment.codeGenerator,
-                                interfaceClassDeclaration = annotatedClassDeclaration
-                            )
-                            val generatedStubClassDeclaration = resolver.getClassDeclarationByName(
-                                resolver.getKSNameFromString("com.lza.android.inter.process.library.interfaces.GeneratedStubFunction")
-                            ) ?: return@async
-                            InterfaceStubClassGenerator.buildInterfaceProxyImplementationClass(
-                                codeGenerator = environment.codeGenerator,
-                                interfaceClassDeclaration = annotatedClassDeclaration,
-                                generatedStubClassDeclaration = generatedStubClassDeclaration
-                            )
-                        }
-                    }.awaitAll()
+                    ).forEach { annotatedClassDeclaration ->
+                        InterfaceProxyClassGenerator.buildInterfaceProxyImplementationClass(
+                            resolver = resolver,
+                            codeGenerator = environment.codeGenerator,
+                            interfaceClassDeclaration = annotatedClassDeclaration
+                        )
+                        val generatedStubClassDeclaration = resolver.getClassDeclarationByName(
+                            resolver.getKSNameFromString("com.lza.android.inter.process.library.interfaces.GeneratedStubFunction")
+                        ) ?: return@forEach
+                        InterfaceStubClassGenerator.buildInterfaceProxyImplementationClass(
+                            codeGenerator = environment.codeGenerator,
+                            interfaceClassDeclaration = annotatedClassDeclaration,
+                            generatedStubClassDeclaration = generatedStubClassDeclaration
+                        )
+                    }
                 }
                 return emptyList()
             }
