@@ -14,9 +14,9 @@ java {
 publishing {
     publications {
         register<MavenPublication>("java") {
-            groupId = "com.github.DroidLin"
-            artifactId = "android-inter-process-call-annotation"
-            version = "1.0.0"
+            groupId = project.group.toString()
+            artifactId = "inter-process-${project.name}"
+            version = project.version.toString()
 
             afterEvaluate {
                 from(components["java"])

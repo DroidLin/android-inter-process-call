@@ -1,5 +1,8 @@
 package com.lza.android.inter.process.call
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
 /**
  * @author liuzhongao
  * @since 2024/1/14 23:42
@@ -25,6 +28,8 @@ object MainProcessServiceImpl : ProcessService {
     }
 
     override suspend fun String.calculateStringCount(): Int {
-        return length
+        return withContext(Dispatchers.IO) {
+            throw NullPointerException("hhh")
+        }
     }
 }

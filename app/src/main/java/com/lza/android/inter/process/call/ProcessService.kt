@@ -1,13 +1,12 @@
 package com.lza.android.inter.process.call
 
-import com.lza.android.inter.process.annotation.RemoteProcessInterface
 import com.lza.android.inter.process.library.interfaces.IPCNoProguard
 
 /**
  * @author liuzhongao
  * @since 2024/1/14 23:41
  */
-@RemoteProcessInterface
+//@RemoteProcessInterface
 interface ProcessService : IPCNoProguard {
 
     val processName: String

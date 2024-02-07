@@ -18,7 +18,7 @@ class LibraryActivity : AppCompatActivity() {
         btnRemoteCall.setOnClickListener { v ->
             this.lifecycleScope.launch {
                 val startTimeStamp = SystemClock.elapsedRealtimeNanos()
-                val processService = ProcessCenter.getService(ProcessConst.KEY_MAIN_PROCESS, ProcessService::class.java)
+                val processService = ProcessCenter.getService(ProcessConst.KEY_MAIN_PROCESS, ProcessService::class.java, exceptionHandler = { true })
                 val remoteProcessName = processService.suspendTestFunction("libraryActivity", 500)
                 Log.i("LibraryActivity", "remoteProcessName: $remoteProcessName")
                 Log.i(

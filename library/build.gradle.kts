@@ -53,9 +53,9 @@ dependencies {
 publishing {
     publications {
         register<MavenPublication>("release") {
-            groupId = "com.github.DroidLin"
-            artifactId = "android-inter-process-call"
-            version = "1.0.0"
+            groupId = project.group.toString()
+            artifactId = "inter-process-${project.name}"
+            version = project.version.toString()
 
             afterEvaluate {
                 from(components["release"])

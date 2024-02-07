@@ -12,14 +12,16 @@ import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
-    private val processService = ProcessCenter.getService(
-        destProcessKey = ProcessConst.KEY_LIBRARY_PROCESS,
-        clazz = ProcessService::class.java,
-        defaultImpl = MainProcessServiceImpl,
-        exceptionHandler = {
-            it?.printStackTrace();true
-        }
-    )
+    private val processService by lazy {
+        ProcessCenter.getService(
+            destProcessKey = ProcessConst.KEY_LIBRARY_PROCESS,
+            clazz = ProcessService::class.java,
+            defaultImpl = MainProcessServiceImpl,
+            exceptionHandler = {
+                it?.printStackTrace();true
+            }
+        )
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

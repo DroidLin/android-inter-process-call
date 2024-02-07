@@ -22,9 +22,9 @@ dependencies {
 publishing {
     publications {
         register<MavenPublication>("java") {
-            groupId = "com.github.DroidLin"
-            artifactId = "android-inter-process-call-compiler"
-            version = "1.0.0"
+            groupId = project.group.toString()
+            artifactId = "inter-process-${project.name}"
+            version = project.version.toString()
 
             afterEvaluate {
                 from(components["java"])
