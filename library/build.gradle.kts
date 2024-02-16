@@ -54,7 +54,7 @@ publishing {
     publications {
         register<MavenPublication>("release") {
             groupId = project.group.toString()
-            artifactId = "inter-process-${project.name}"
+            artifactId = project.name
             version = project.version.toString()
 
             afterEvaluate {

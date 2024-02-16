@@ -70,5 +70,5 @@ dependencies {
     implementation(kotlin("reflect"))
 
     implementation(project(":annotation"))
-    ksp(project(":compiler"))
+    "ksp"(project(":ksp-compiler"))
 }
