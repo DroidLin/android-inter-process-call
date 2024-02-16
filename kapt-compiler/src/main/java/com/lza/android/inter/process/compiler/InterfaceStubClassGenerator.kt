@@ -81,7 +81,7 @@ internal object InterfaceStubClassGenerator {
                         appendLine("\t\t\t\tbreak;")
                         appendLine("\t\t}")
                         appendLine("\t\treturn result;")
-                    } else appendLine("return null;")
+                    } else appendLine("\t\treturn null;")
                 }
                 .appendLine("\t}")
 
@@ -117,7 +117,7 @@ internal object InterfaceStubClassGenerator {
                         appendLine("\t\t\t\tbreak;")
                         appendLine("\t\t}")
                         appendLine("\t\treturn result;")
-                    } else appendLine("return null;")
+                    } else appendLine("\t\treturn null;")
                 }
                 .appendLine("\t}")
         }
