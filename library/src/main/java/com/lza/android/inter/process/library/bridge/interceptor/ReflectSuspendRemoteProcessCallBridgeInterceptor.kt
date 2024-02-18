@@ -14,11 +14,11 @@ import kotlin.coroutines.CoroutineContext
  * @author liuzhongao
  * @since 2024/1/17 10:31
  */
-internal fun suspendRemoteProcessCallInterceptor(block: suspend (Class<*>, String, Array<Class<*>>, Array<Any?>) -> Any?): BridgeInterceptor<Request> {
-    return SuspendRemoteProcessCallBridgeInterceptor(block = block) as BridgeInterceptor<Request>
+internal fun reflectSuspendRemoteProcessCallInterceptor(block: suspend (Class<*>, String, Array<Class<*>>, Array<Any?>) -> Any?): BridgeInterceptor<Request> {
+    return ReflectSuspendRemoteProcessCallBridgeInterceptor(block = block) as BridgeInterceptor<Request>
 }
 
-internal class SuspendRemoteProcessCallBridgeInterceptor(
+internal class ReflectSuspendRemoteProcessCallBridgeInterceptor(
     private val coroutineContext: CoroutineContext = Dispatchers.Default,
     private val block: suspend (Class<*>, String, Array<Class<*>>, Array<Any?>) -> Any?
 ) : BridgeInterceptor<ReflectionSuspendInvocationRequest> {
@@ -45,7 +45,7 @@ internal class SuspendRemoteProcessCallBridgeInterceptor(
         suspendCallback: RemoteProcessSuspendCallback
     ): Any? {
         val continuation = object : Continuation<Any?> {
-            override val context: CoroutineContext get() = this@SuspendRemoteProcessCallBridgeInterceptor.coroutineContext
+            override val context: CoroutineContext get() = this@ReflectSuspendRemoteProcessCallBridgeInterceptor.coroutineContext
             override fun resumeWith(result: Result<Any?>) = suspendCallback.callbackSuspend(data = result.getOrNull(), throwable = result.exceptionOrNull())
         }
         // suspend functions need Continuation instance to be the last parameter in parameter array.

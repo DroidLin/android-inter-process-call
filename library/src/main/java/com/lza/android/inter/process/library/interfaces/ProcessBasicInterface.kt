@@ -5,8 +5,8 @@ import com.lza.android.inter.process.library.ProcessImplementationCenter
 import com.lza.android.inter.process.library.bridge.interceptor.directRemoteProcessCallBridgeInterceptor
 import com.lza.android.inter.process.library.bridge.interceptor.directSuspendRemoteProcessCallBridgeInterceptor
 import com.lza.android.inter.process.library.bridge.interceptor.handShakeBridgeInterceptor
-import com.lza.android.inter.process.library.bridge.interceptor.remoteProcessCallInterceptor
-import com.lza.android.inter.process.library.bridge.interceptor.suspendRemoteProcessCallInterceptor
+import com.lza.android.inter.process.library.bridge.interceptor.reflectRemoteProcessCallInterceptor
+import com.lza.android.inter.process.library.bridge.interceptor.reflectSuspendRemoteProcessCallInterceptor
 import com.lza.android.inter.process.library.bridge.parameter.DirectInvocationRequest
 import com.lza.android.inter.process.library.bridge.parameter.DirectSuspendInvocationRequest
 import com.lza.android.inter.process.library.bridge.parameter.HandShakeRequest
@@ -97,10 +97,10 @@ internal sealed interface ProcessBasicInterface {
             this.bridgeInterface += handShakeBridgeInterceptor { processKey, basicInterface ->
                 this.onReceiveBinder(processKey, basicInterface)
             }
-            this.bridgeInterface += remoteProcessCallInterceptor { clazz, methodName, argTypes, args ->
+            this.bridgeInterface += reflectRemoteProcessCallInterceptor { clazz, methodName, argTypes, args ->
                 this.invokeRemoteProcessMethod(declaringClass = clazz, methodName = methodName, argTypes = argTypes, args = args)
             }
-            this.bridgeInterface += suspendRemoteProcessCallInterceptor { clazz, methodName, argTypes, args ->
+            this.bridgeInterface += reflectSuspendRemoteProcessCallInterceptor { clazz, methodName, argTypes, args ->
                 this.invokeSuspendRemoteProcessMethod(declaringClass = clazz, methodName = methodName, argTypes = argTypes, args = args)
             }
             this.bridgeInterface += directRemoteProcessCallBridgeInterceptor { className, functionName, args ->

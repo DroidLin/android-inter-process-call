@@ -19,11 +19,11 @@ import kotlin.coroutines.resumeWithException
  * @author liuzhongao
  * @since 2024/1/17 00:13
  */
-internal fun remoteProcessCallInterceptor(block: (Class<*>, String, Array<Class<*>>, Array<Any?>) -> Any?): BridgeInterceptor<Request> {
-    return RemoteProcessCallBridgeInterceptor(block = block) as BridgeInterceptor<Request>
+internal fun reflectRemoteProcessCallInterceptor(block: (Class<*>, String, Array<Class<*>>, Array<Any?>) -> Any?): BridgeInterceptor<Request> {
+    return ReflectRemoteProcessCallBridgeInterceptor(block = block) as BridgeInterceptor<Request>
 }
 
-internal class RemoteProcessCallBridgeInterceptor(
+internal class ReflectRemoteProcessCallBridgeInterceptor(
     private val block: (Class<*>, String, Array<Class<*>>, Array<Any?>) -> Any?
 ) : BridgeInterceptor<ReflectionInvocationRequest> {
 
@@ -84,7 +84,7 @@ internal class RemoteProcessCallBridgeInterceptor(
                 val parameterTypesWithContinuation = (parameterTypes + Continuation::class.java).toTypedArray()
                 val parameterValuesWithContinuation = (parameterValues + continuation).toTypedArray()
                 kotlin.runCatching {
-                    this@RemoteProcessCallBridgeInterceptor.block.invoke(
+                    this@ReflectRemoteProcessCallBridgeInterceptor.block.invoke(
                         declaringJvmClass,
                         methodName,
                         parameterTypesWithContinuation,

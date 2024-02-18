@@ -32,4 +32,7 @@ object MainProcessServiceImpl : ProcessService {
             throw NullPointerException("hhh")
         }
     }
+
+    override fun testThrowable() {
+    }
 }

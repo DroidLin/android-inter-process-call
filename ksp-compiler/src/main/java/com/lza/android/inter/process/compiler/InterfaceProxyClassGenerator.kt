@@ -93,7 +93,7 @@ internal object InterfaceProxyClassGenerator {
         className: String,
         body: () -> Unit
     ) {
-        writer.appendLine("class $className @JvmOverloads constructor (")
+        writer.appendLine("class $className @JvmOverloads constructor(")
             .appendLine("\tprivate val context: android.content.Context,")
             .appendLine("\tprivate val currentProcessKey: kotlin.String,")
             .appendLine("\tprivate val destinationProcessKey: kotlin.String,")
@@ -231,24 +231,13 @@ internal object InterfaceProxyClassGenerator {
                     .appendLine("\t\t\t\tfunctionParameters = kotlin.collections.listOf(${buildFunctionCallParameter(functionDeclaration)}),")
                     .appendLine("\t\t\t)")
                     .appendLine("\t\t}")
-                    .apply {
-                        if (hasReturnValue) {
-                            appendLine("\t\tif (data != null) {")
-                            appendLine("\t\t\treturn data")
-                            appendLine("\t\t}")
-                        }
-                    }
             }
             .apply {
                 if (!hasReturnValue) {
                     return@apply
                 }
-                appendLine("\t\tif (this@${className}.interfaceDefaultImpl != null) {")
-                if (functionReturnType.isMarkedNullable) {
-                    append("\t\t\tdata = ")
-                } else if (!functionReturnType.isMarkedNullable) {
-                    append("\t\t\treturn ")
-                } else append("\t\t\t")
+                appendLine("\t\tif (data == null && this@${className}.interfaceDefaultImpl != null) {")
+                append("\t\t\tdata = ")
                 if (functionDeclaration.extensionReceiver != null) {
                     appendLine("this@${className}.interfaceDefaultImpl.run { ${functionDeclaration.simpleName.asString()}(${buildFunctionCallParameter(functionDeclaration)}) }")
                 } else {
@@ -259,9 +248,13 @@ internal object InterfaceProxyClassGenerator {
             .apply {
                 if (functionReturnType.isMarkedNullable) {
                     appendLine("\t\treturn data")
-                }
-                if (hasReturnValue && !functionReturnType.isMarkedNullable) {
-                    appendLine("\t\tthrow kotlin.IllegalArgumentException(\"function return type requires non-null type, but returns null type after IPC call and the fallback operation!! please check.\")")
+                } else {
+                    if (hasReturnValue) {
+                        appendLine("\t\tif (data == null) {")
+                        appendLine("\t\t\tthrow kotlin.IllegalArgumentException(\"function return type requires non-null type, but returns null type after IPC call and the fallback operation!! please check.\")")
+                        appendLine("\t\t}")
+                        appendLine("\t\treturn data")
+                    }
                 }
             }
     }

@@ -48,16 +48,19 @@ internal object InterfaceProxyClassGenerator {
                         val returnTypeString = function.returnType.toString()
                         val returnValueExists = returnTypeString != "void" && returnTypeString != "java.lang.Void"
                         if (returnValueExists) {
-                            writer.append("\t\treturn ")
-                        } else writer.append("\t\t")
+                            writer.appendLine("\t\tjava.lang.Object data = null;")
+                        }
+                        writer.appendLine("\t\ttry {")
                         if (function.isSuspendExecutable) {
-                            writer.appendLine("com.lza.android.inter.process.library.KSPHelperKt.invokeDirectSuspendKotlinFunction(")
-                            writer.appendLine("\t\t\tthis.context,")
-                            writer.appendLine("\t\t\tthis.currentProcessKey,")
-                            writer.appendLine("\t\t\tthis.destinationProcessKey,")
-                            writer.appendLine("\t\t\t\"${declaringClassName}\",")
-                            writer.appendLine("\t\t\t\"${buildFunctionUniqueKey(function)}\",")
-                            writer.append("\t\t\tkotlin.collections.CollectionsKt.listOf(")
+                            if (returnValueExists) {
+                                writer.appendLine("\t\t\tdata = com.lza.android.inter.process.library.KSPHelperKt.invokeDirectSuspendKotlinFunction(")
+                            } else writer.appendLine("\t\t\tcom.lza.android.inter.process.library.KSPHelperKt.invokeDirectSuspendKotlinFunction(")
+                            writer.appendLine("\t\t\t\tthis.context,")
+                            writer.appendLine("\t\t\t\tthis.currentProcessKey,")
+                            writer.appendLine("\t\t\t\tthis.destinationProcessKey,")
+                            writer.appendLine("\t\t\t\t\"${declaringClassName}\",")
+                            writer.appendLine("\t\t\t\t\"${buildFunctionUniqueKey(function)}\",")
+                            writer.append("\t\t\t\tkotlin.collections.CollectionsKt.listOf(")
                             val continuationVariable = function.continuationVariable
                             val functionParameter = function.parametersWithoutContinuation
                             if (functionParameter.isNotEmpty()) {
@@ -72,16 +75,18 @@ internal object InterfaceProxyClassGenerator {
                             if (continuationVariable != null) {
                                 writer.appendLine("\t\t\t${continuationVariable.simpleName}")
                             }
-                            writer.appendLine("\t\t);")
+                            writer.appendLine("\t\t\t);")
                         } else {
-                            writer.appendLine("com.lza.android.inter.process.library.KSPHelperKt.invokeDirectKotlinFunction(")
-                            writer.appendLine("\t\t\tthis.coroutineContext,")
-                            writer.appendLine("\t\t\tthis.context,")
-                            writer.appendLine("\t\t\tthis.currentProcessKey,")
-                            writer.appendLine("\t\t\tthis.destinationProcessKey,")
-                            writer.appendLine("\t\t\t\"${declaringClassName}\",")
-                            writer.appendLine("\t\t\t\"${buildFunctionUniqueKey(function)}\",")
-                            writer.append("\t\t\tkotlin.collections.CollectionsKt.listOf(")
+                            if (returnValueExists) {
+                                writer.appendLine("\t\t\tdata = com.lza.android.inter.process.library.KSPHelperKt.invokeDirectKotlinFunction(")
+                            } else writer.appendLine("\t\t\tcom.lza.android.inter.process.library.KSPHelperKt.invokeDirectKotlinFunction(")
+                            writer.appendLine("\t\t\t\tthis.coroutineContext,")
+                            writer.appendLine("\t\t\t\tthis.context,")
+                            writer.appendLine("\t\t\t\tthis.currentProcessKey,")
+                            writer.appendLine("\t\t\t\tthis.destinationProcessKey,")
+                            writer.appendLine("\t\t\t\t\"${declaringClassName}\",")
+                            writer.appendLine("\t\t\t\t\"${buildFunctionUniqueKey(function)}\",")
+                            writer.append("\t\t\t\tkotlin.collections.CollectionsKt.listOf(")
                             val functionParameter = function.parameters
                             if (functionParameter.isNotEmpty()) {
                                 functionParameter.forEachIndexed { index, variableElement ->
@@ -92,8 +97,53 @@ internal object InterfaceProxyClassGenerator {
                                 }
                             }
                             writer.appendLine(")")
-                            writer.appendLine("\t\t);")
+                            writer.appendLine("\t\t\t);")
                         }
+                        writer.appendLine("\t\t} catch (Throwable throwable) {")
+                            .appendLine("\t\t\tif (this.exceptionHandler != null && !this.exceptionHandler.handleException(throwable)) {")
+                            .appendLine("\t\t\t\tthrow new com.lza.android.inter.process.library.kotlin.UnHandledRuntimeException(throwable);")
+                            .appendLine("\t\t\t}")
+                            .appendLine("\t\t}")
+                            .apply {
+                                if (returnValueExists) {
+                                    appendLine("\t\tif (data == null) {")
+                                        .appendLine("\t\t\tif (this.interfaceDefaultImpl != null) {")
+                                        .appendLine("\t\t\t\tdata = this.interfaceDefaultImpl.${function.simpleName}(${
+                                            function.parameters.let { functionParameter ->
+                                                StringBuilder().also { stringBuilder ->
+                                                    if (functionParameter.isNotEmpty()) {
+                                                        functionParameter.forEachIndexed { index, variableElement ->
+                                                            if (index != 0) {
+                                                                stringBuilder.append(", ")
+                                                            }
+                                                            stringBuilder.append(variableElement.simpleName.toString())
+                                                        }
+                                                    }
+                                                }.toString()
+                                            }
+                                        });")
+                                        .appendLine("\t\t\t}")
+                                        .appendLine("\t\t}")
+                                        .appendLine("\t\treturn (${returnTypeString}) data;")
+                                }/* else {
+                                    appendLine("\t\tif (this.interfaceDefaultImpl != null) {")
+                                        .appendLine("\t\t\tthis.interfaceDefaultImpl.${function.simpleName}(${
+                                            function.parameters.let { functionParameter ->
+                                                StringBuilder().also { stringBuilder ->
+                                                    if (functionParameter.isNotEmpty()) {
+                                                        functionParameter.forEachIndexed { index, variableElement ->
+                                                            if (index != 0) {
+                                                                stringBuilder.append(", ")
+                                                            }
+                                                            stringBuilder.append(variableElement.simpleName.toString())
+                                                        }
+                                                    }
+                                                }.toString()
+                                            }
+                                        });")
+                                        .appendLine("\t\t}")
+                                }*/
+                            }
                     }
                 }
             }
@@ -125,10 +175,10 @@ internal object InterfaceProxyClassGenerator {
             .appendLine("\tprivate final android.content.Context context;")
             .appendLine()
             .appendLine("\t@androidx.annotation.NonNull")
-            .appendLine("\tprivate final String currentProcessKey;")
+            .appendLine("\tprivate final java.lang.String currentProcessKey;")
             .appendLine()
             .appendLine("\t@androidx.annotation.NonNull")
-            .appendLine("\tprivate final String destinationProcessKey;")
+            .appendLine("\tprivate final java.lang.String destinationProcessKey;")
             .appendLine()
             .appendLine("\t@androidx.annotation.NonNull")
             .appendLine("\tprivate final kotlin.coroutines.CoroutineContext coroutineContext;")
@@ -143,8 +193,8 @@ internal object InterfaceProxyClassGenerator {
         writer.appendLine()
             .append("\tpublic ${newClassName}(")
             .append("@androidx.annotation.NonNull android.content.Context context, ")
-            .append("@androidx.annotation.NonNull String currentProcessKey, ")
-            .append("@androidx.annotation.NonNull String destinationProcessKey, ")
+            .append("@androidx.annotation.NonNull java.lang.String currentProcessKey, ")
+            .append("@androidx.annotation.NonNull java.lang.String destinationProcessKey, ")
             .append("@androidx.annotation.NonNull kotlin.coroutines.CoroutineContext coroutineContext, ")
             .append("@androidx.annotation.NonNull ${rootElement.qualifiedName} interfaceDefaultImpl, ")
             .append("@androidx.annotation.NonNull com.lza.android.inter.process.library.interfaces.ExceptionHandler exceptionHandler")
