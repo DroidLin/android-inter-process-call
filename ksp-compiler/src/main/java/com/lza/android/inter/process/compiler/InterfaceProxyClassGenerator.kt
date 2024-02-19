@@ -93,7 +93,7 @@ internal object InterfaceProxyClassGenerator {
         className: String,
         body: () -> Unit
     ) {
-        writer.appendLine("class $className @JvmOverloads constructor (")
+        writer.appendLine("class $className @JvmOverloads constructor(")
             .appendLine("\tprivate val context: android.content.Context,")
             .appendLine("\tprivate val currentProcessKey: kotlin.String,")
             .appendLine("\tprivate val destinationProcessKey: kotlin.String,")
@@ -140,7 +140,7 @@ internal object InterfaceProxyClassGenerator {
     ) {
         val propertyType = propertyDeclaration.type.resolve()
         writer
-            .appendLine("\t\t\tval data = this@${className}.runWithExceptionHandle {")
+            .appendLine("\t\t\tvar data = this@${className}.runWithExceptionHandle {")
             .appendLine("\t\t\t\tcom.lza.android.inter.process.library.invokeDirectProperty<${buildType(propertyDeclaration.type.resolve(), false)}>(")
             .appendLine("\t\t\t\t\tcoroutineContext = this@${className}.coroutineContext,")
             .appendLine("\t\t\t\t\tandroidContext = this@${className}.context,")
@@ -150,21 +150,21 @@ internal object InterfaceProxyClassGenerator {
             .appendLine("\t\t\t\t\tpropertyName = \"${buildPropertyUniqueKey(propertyDeclaration)}\"")
             .appendLine("\t\t\t\t)")
             .appendLine("\t\t\t}")
-            .appendLine("\t\t\tif (data != null) {")
-            .appendLine("\t\t\t\treturn data")
-            .appendLine("\t\t\t}")
-            .appendLine("\t\t\tif (this@${className}.interfaceDefaultImpl != null) {")
+            .appendLine("\t\t\tif (data == null && this@${className}.interfaceDefaultImpl != null) {")
             .apply {
                 if (propertyDeclaration.extensionReceiver != null) {
-                    appendLine("\t\t\t\treturn this@${className}.interfaceDefaultImpl.run { ${propertyDeclaration.simpleName.asString()} }")
-                } else appendLine("\t\t\t\treturn this@${className}.interfaceDefaultImpl.${propertyDeclaration.simpleName.asString()}")
+                    appendLine("\t\t\t\tdata = this@${className}.interfaceDefaultImpl.run { ${propertyDeclaration.simpleName.asString()} }")
+                } else appendLine("\t\t\t\tdata = this@${className}.interfaceDefaultImpl.${propertyDeclaration.simpleName.asString()}")
             }
             .appendLine("\t\t\t}")
             .apply {
-                if (propertyType.isMarkedNullable) {
-                    appendLine("\t\t\treturn null")
-                } else appendLine("\t\t\tthrow kotlin.IllegalArgumentException(\"function return type requires non-null type, but returns null type after IPC call and the fallback operation!! please check.\")")
+                if (!propertyType.isMarkedNullable) {
+                    appendLine("\t\t\tif (data == null) {")
+                    appendLine("\t\t\t\tthrow kotlin.IllegalArgumentException(\"function return type requires non-null type, but returns null type after IPC call and the fallback operation!! please check.\")")
+                    appendLine("\t\t\t}")
+                }
             }
+            .appendLine("\t\t\treturn data")
     }
 
     private fun buildFunction(
@@ -231,24 +231,13 @@ internal object InterfaceProxyClassGenerator {
                     .appendLine("\t\t\t\tfunctionParameters = kotlin.collections.listOf(${buildFunctionCallParameter(functionDeclaration)}),")
                     .appendLine("\t\t\t)")
                     .appendLine("\t\t}")
-                    .apply {
-                        if (hasReturnValue) {
-                            appendLine("\t\tif (data != null) {")
-                            appendLine("\t\t\treturn data")
-                            appendLine("\t\t}")
-                        }
-                    }
             }
             .apply {
                 if (!hasReturnValue) {
                     return@apply
                 }
-                appendLine("\t\tif (this@${className}.interfaceDefaultImpl != null) {")
-                if (functionReturnType.isMarkedNullable) {
-                    append("\t\t\tdata = ")
-                } else if (!functionReturnType.isMarkedNullable) {
-                    append("\t\t\treturn ")
-                } else append("\t\t\t")
+                appendLine("\t\tif (data == null && this@${className}.interfaceDefaultImpl != null) {")
+                append("\t\t\tdata = ")
                 if (functionDeclaration.extensionReceiver != null) {
                     appendLine("this@${className}.interfaceDefaultImpl.run { ${functionDeclaration.simpleName.asString()}(${buildFunctionCallParameter(functionDeclaration)}) }")
                 } else {
@@ -259,9 +248,13 @@ internal object InterfaceProxyClassGenerator {
             .apply {
                 if (functionReturnType.isMarkedNullable) {
                     appendLine("\t\treturn data")
-                }
-                if (hasReturnValue && !functionReturnType.isMarkedNullable) {
-                    appendLine("\t\tthrow kotlin.IllegalArgumentException(\"function return type requires non-null type, but returns null type after IPC call and the fallback operation!! please check.\")")
+                } else {
+                    if (hasReturnValue) {
+                        appendLine("\t\tif (data == null) {")
+                        appendLine("\t\t\tthrow kotlin.IllegalArgumentException(\"function return type requires non-null type, but returns null type after IPC call and the fallback operation!! please check.\")")
+                        appendLine("\t\t}")
+                        appendLine("\t\treturn data")
+                    }
                 }
             }
     }
