@@ -1,18 +1,11 @@
 package com.lza.android.inter.process.compiler
 
 import com.lza.android.inter.process.annotation.RemoteProcessInterface
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.runBlocking
 import javax.annotation.processing.AbstractProcessor
 import javax.annotation.processing.RoundEnvironment
 import javax.annotation.processing.SupportedAnnotationTypes
 import javax.annotation.processing.SupportedSourceVersion
 import javax.lang.model.SourceVersion
-import javax.lang.model.element.Element
 import javax.lang.model.element.ElementKind
 import javax.lang.model.element.TypeElement
 
@@ -23,8 +16,6 @@ import javax.lang.model.element.TypeElement
 @SupportedAnnotationTypes("com.lza.android.inter.process.annotation.RemoteProcessInterface")
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
 class RemoteProcessAnnotationProcessor : AbstractProcessor() {
-
-    private val coroutineScope = CoroutineScope(context = Dispatchers.Default + SupervisorJob())
 
     override fun process(
         set: MutableSet<out TypeElement>?,
