@@ -42,8 +42,10 @@ internal object InterfaceProxyClassGenerator {
             )
             val memberFunctionList = rootElement.enclosedElements
             if (memberFunctionList.isNotEmpty()) {
-                memberFunctionList.forEach { function ->
-                    if (function !is ExecutableElement) return@forEach
+                for (function in memberFunctionList) {
+                    if (function !is ExecutableElement) {
+                        continue
+                    }
                     this.buildImplementationMethod(writer, function) {
                         val returnTypeString = function.returnType.toString()
                         val returnValueExists = returnTypeString != "void" && returnTypeString != "java.lang.Void"
@@ -106,9 +108,8 @@ internal object InterfaceProxyClassGenerator {
                             .appendLine("\t\t}")
                             .apply {
                                 if (returnValueExists) {
-                                    appendLine("\t\tif (data == null) {")
-                                        .appendLine("\t\t\tif (this.interfaceDefaultImpl != null) {")
-                                        .appendLine("\t\t\t\tdata = this.interfaceDefaultImpl.${function.simpleName}(${
+                                    appendLine("\t\tif (data == null && this.interfaceDefaultImpl != null) {")
+                                        .appendLine("\t\t\tdata = this.interfaceDefaultImpl.${function.simpleName}(${
                                             function.parameters.let { functionParameter ->
                                                 StringBuilder().also { stringBuilder ->
                                                     if (functionParameter.isNotEmpty()) {
@@ -122,27 +123,9 @@ internal object InterfaceProxyClassGenerator {
                                                 }.toString()
                                             }
                                         });")
-                                        .appendLine("\t\t\t}")
                                         .appendLine("\t\t}")
                                         .appendLine("\t\treturn (${returnTypeString}) data;")
-                                }/* else {
-                                    appendLine("\t\tif (this.interfaceDefaultImpl != null) {")
-                                        .appendLine("\t\t\tthis.interfaceDefaultImpl.${function.simpleName}(${
-                                            function.parameters.let { functionParameter ->
-                                                StringBuilder().also { stringBuilder ->
-                                                    if (functionParameter.isNotEmpty()) {
-                                                        functionParameter.forEachIndexed { index, variableElement ->
-                                                            if (index != 0) {
-                                                                stringBuilder.append(", ")
-                                                            }
-                                                            stringBuilder.append(variableElement.simpleName.toString())
-                                                        }
-                                                    }
-                                                }.toString()
-                                            }
-                                        });")
-                                        .appendLine("\t\t}")
-                                }*/
+                                }
                             }
                     }
                 }
@@ -227,10 +210,5 @@ internal object InterfaceProxyClassGenerator {
         writer.appendLine(") {")
         body()
         writer.appendLine("\t}")
-    }
-
-    @JvmStatic
-    private fun buildMethodBody(writer: Writer, element: ExecutableElement) {
-
     }
 }

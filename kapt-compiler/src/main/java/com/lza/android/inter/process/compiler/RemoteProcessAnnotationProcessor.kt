@@ -4,6 +4,9 @@ import com.lza.android.inter.process.annotation.RemoteProcessInterface
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.runBlocking
 import javax.annotation.processing.AbstractProcessor
 import javax.annotation.processing.RoundEnvironment
 import javax.annotation.processing.SupportedAnnotationTypes
@@ -28,10 +31,7 @@ class RemoteProcessAnnotationProcessor : AbstractProcessor() {
         roundEnvironment: RoundEnvironment?
     ): Boolean {
         if (roundEnvironment == null) return false
-
-        val relatedElements: Set<Element> =
-            roundEnvironment.getElementsAnnotatedWith(RemoteProcessInterface::class.java)
-        relatedElements.forEach { element ->
+        roundEnvironment.getElementsAnnotatedWith(RemoteProcessInterface::class.java).forEach { element ->
             require(element.kind == ElementKind.INTERFACE) {
                 "annotation requires ${element.simpleName} declared as interface"
             }

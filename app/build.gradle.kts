@@ -1,7 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("com.google.devtools.ksp")
+//    id("com.google.devtools.ksp")
     id("kotlin-kapt")
 }
 
@@ -70,6 +70,6 @@ dependencies {
     implementation(kotlin("reflect"))
 
     implementation(project(":annotation"))
-    ksp(project(":ksp-compiler"))
-//    kapt(project(":kapt-compiler"))
+//    ksp(project(":ksp-compiler"))
+    kapt(project(":kapt-compiler"))
 }

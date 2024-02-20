@@ -51,9 +51,7 @@ val ExecutableElement.isSuspendExecutable: Boolean
     }
 
 val ExecutableElement.continuationVariable: VariableElement?
-    get() {
-        return this.parameters.find { it.asType().toString().contains("kotlin.coroutines.Continuation") }
-    }
+    get() = this.parameters.find { it.asType().toString().contains("kotlin.coroutines.Continuation") }
 
 val ExecutableElement.parametersWithoutContinuation: List<VariableElement>
     get() = this.parameters.filter { !it.asType().toString().contains("kotlin.coroutines.Continuation") }
