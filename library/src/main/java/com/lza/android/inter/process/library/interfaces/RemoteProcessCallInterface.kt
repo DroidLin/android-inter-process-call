@@ -29,6 +29,20 @@ internal val RemoteProcessCallInterface.binder: IBinder
         }
     }
 
+internal operator fun RemoteProcessCallInterface.plusAssign(bridgeInterceptor: BridgeInterceptor<out Request>) {
+    when (this) {
+        is RemoteProcessCallInterface.Stub -> this.add(bridgeInterceptor)
+        else -> {}
+    }
+}
+
+internal operator fun RemoteProcessCallInterface.plus(bridgeInterceptor: BridgeInterceptor<out Request>) = apply {
+    when (this) {
+        is RemoteProcessCallInterface.Stub -> this.add(bridgeInterceptor)
+        else -> {}
+    }
+}
+
 /**
  * 最基础的远端调用接口，非必要不扩展该接口和aidl的接口内容，可能会破坏跨进程调用的设计思想
  *
@@ -91,7 +105,6 @@ sealed interface RemoteProcessCallInterface {
         override fun invoke(request: Request): Response? {
             val bridgeParameter = BridgeParameter.obtain()
             bridgeParameter.request = request
-            // Todo: 日志收集
             kotlin.runCatching { this.binderInterface.invoke(bridgeParameter) }
                 .onFailure { it.printStackTrace() }
                 .onFailure { bridgeParameter.response = InternalInvocationFailureResponse(null, it) }
@@ -138,14 +151,6 @@ sealed interface RemoteProcessCallInterface {
         }
 
         override val isStillAlive: Boolean get() = true
-
-        operator fun plus(bridgeInterceptor: BridgeInterceptor<out Request>) = apply {
-            this.add(bridgeInterceptor)
-        }
-
-        operator fun plusAssign(bridgeInterceptor: BridgeInterceptor<out Request>) {
-            this.add(bridgeInterceptor)
-        }
 
         fun add(bridgeInterceptor: BridgeInterceptor<out Request>) {
             synchronized(this.bridgeInterceptorChain) {

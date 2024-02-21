@@ -23,7 +23,7 @@ object ProcessCenter : IPCenter {
     private val interfaceStubGeneratedFunctionMap = ConcurrentHashMap<String, GeneratedStubFunction>()
 
     override fun init(initConfig: ProcessCallInitConfig) {
-        ProcessConnectionCenter.processCallInitConfig = initConfig
+        ProcessConnectionCenter.init(initConfig)
     }
 
     override fun setRootExceptionHandler(exceptionHandler: ExceptionHandler) {
@@ -58,7 +58,7 @@ object ProcessCenter : IPCenter {
         coroutineContext: CoroutineContext,
         exceptionHandler: ExceptionHandler?
     ): T {
-        val processCallInitConfig = requireNotNull(ProcessConnectionCenter.processCallInitConfig) { "call init before getService!!" }
+        val processCallInitConfig = ProcessConnectionCenter.initConfig
         val currentProcessKey = processCallInitConfig.identifier.keyForCurrentProcess
         val context = processCallInitConfig.context
 

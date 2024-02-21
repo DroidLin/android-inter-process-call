@@ -12,12 +12,14 @@ class ProcessCallInitConfig private constructor(
     val context: Context,
     val connectionAdapter: ProcessConnectionAdapter,
     val identifier: ProcessIdentifier,
+    val connectionTimeoutMills: Long = 10_000L,
 ) {
 
     class Builder {
         private var context: Context? = null
         private var connectionAdapter: ProcessConnectionAdapter? = null
         private var identifier: ProcessIdentifier? = null
+        private var connectionTimeoutMills: Long = 10_000L
 
         fun setContext(context: Context) = apply { this.context = context }
 
@@ -27,6 +29,10 @@ class ProcessCallInitConfig private constructor(
         fun setProcessIdentifier(identifier: ProcessIdentifier) =
             apply { this.identifier = identifier }
 
+        fun connectionTimeoutMills(connectionTimeoutMills: Long) = apply {
+            this.connectionTimeoutMills = connectionTimeoutMills
+        }
+
         fun build(): ProcessCallInitConfig {
             val context: Context = requireNotNull(this.context)
             val connectionAdapter: ProcessConnectionAdapter = requireNotNull(this.connectionAdapter)
@@ -35,6 +41,7 @@ class ProcessCallInitConfig private constructor(
                 context = context,
                 connectionAdapter = connectionAdapter,
                 identifier = identifier,
+                connectionTimeoutMills = this.connectionTimeoutMills
             )
         }
     }

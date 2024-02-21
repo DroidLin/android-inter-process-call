@@ -32,10 +32,15 @@ internal object ProcessConnectionCenter {
 
     private val coroutineMutex = Mutex()
 
-    internal lateinit var processCallInitConfig: ProcessCallInitConfig
+    private var processCallInitConfig: ProcessCallInitConfig? = null
+    val initConfig: ProcessCallInitConfig get() = requireNotNull(this.processCallInitConfig) { "Connection Center not Initialized." }
+
+    fun init(initConfig: ProcessCallInitConfig) {
+        this.processCallInitConfig = initConfig
+    }
 
     fun binderEstablished(processKey: String, basicInterface: ProcessBasicInterface) {
-        val existBridgeInterface = iBinderMap[processKey]
+        val existBridgeInterface = this.iBinderMap[processKey]
         if (existBridgeInterface == null || !existBridgeInterface.isStillAlive) {
             basicInterface.linkToDeath(
                 deathRecipient = object : RemoteProcessCallInterface.DeathRecipient {
@@ -45,7 +50,7 @@ internal object ProcessConnectionCenter {
                     }
                 }
             )
-            iBinderMap[processKey] = basicInterface
+            this.iBinderMap[processKey] = basicInterface
         }
     }
 
@@ -73,41 +78,35 @@ internal object ProcessConnectionCenter {
                         async {
                             suspendCoroutine { continuation ->
                                 val oneShotContinuation = OneShotContinuation(continuation = continuation)
-                                if (!this@ProcessConnectionCenter::processCallInitConfig.isInitialized) {
-                                    oneShotContinuation.resumeWithException(NullPointerException("call ProcessCenter#init before trying to connect to remote."))
+                                val initConfigurationCatchResult = kotlin.runCatching {
+                                    this@ProcessConnectionCenter.initConfig
+                                }
+                                if (initConfigurationCatchResult.isFailure) {
+                                    oneShotContinuation.resumeWithException(Throwable(initConfigurationCatchResult.exceptionOrNull()))
                                     return@suspendCoroutine
                                 }
+                                val initConfig = initConfigurationCatchResult.getOrThrow()
 
                                 val timeoutJob = launch {
-                                    delay(10_000L)
+                                    delay(initConfig.connectionTimeoutMills)
                                     this@ProcessConnectionCenter.pendingConnectRequestMap.remove(destKey)
                                     oneShotContinuation.resume(false)
                                 }
                                 val basicInterface = object : ProcessBasicInterface.Stub() {
-
-                                    override fun onReceiveBinder(
-                                        processKey: String,
-                                        basicInterface: ProcessBasicInterface
-                                    ) {
+                                    override fun onReceiveBinder(processKey: String, basicInterface: ProcessBasicInterface) {
                                         timeoutJob.cancel()
-                                        this@ProcessConnectionCenter.binderEstablished(
-                                            processKey = processKey,
-                                            basicInterface = basicInterface
-                                        )
+                                        this@ProcessConnectionCenter.binderEstablished(processKey, basicInterface)
                                         this@ProcessConnectionCenter.pendingConnectRequestMap.remove(processKey)
                                         oneShotContinuation.resume(true)
                                     }
                                 }
-                                val connectionAdapter = this@ProcessConnectionCenter.processCallInitConfig.connectionAdapter
+                                val connectionAdapter = initConfig.connectionAdapter
                                 val requestBundle = ProcessRequestBundle(
                                     basicInterface = basicInterface,
                                     connectionContext = ConnectionContext(selfKey = selfKey, destKey = destKey)
                                 )
                                 kotlin.runCatching {
-                                    connectionAdapter.onAttachToRemote(
-                                        context = context,
-                                        bundle = requestBundle
-                                    )
+                                    connectionAdapter.onAttachToRemote(context, requestBundle)
                                 }.onFailure { oneShotContinuation.resumeWithException(it) }
                             }
                         }
