@@ -238,13 +238,13 @@ internal sealed interface ProcessBasicInterface {
         private fun checkArguments(arguments: Any?) {
             if (arguments is List<*>) {
                 arguments.forEach { argument ->
-                    if (argument !is Serializable && argument !is Parcelable) {
+                    if (argument != null && argument !is Serializable && argument !is Parcelable) {
                         throw IllegalArgumentException("unsupported argument: $argument")
                     }
                 }
             } else if (arguments is Array<*>) {
                 arguments.forEach { argument ->
-                    if (argument !is Serializable && argument !is Parcelable) {
+                    if (argument != null && argument !is Serializable && argument !is Parcelable) {
                         throw IllegalArgumentException("unsupported argument: $argument")
                     }
                 }
