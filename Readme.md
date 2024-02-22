@@ -19,4 +19,4 @@ dependencies {
 # TODO List
 - [x] exception handler for synchronized or suspend functions call.
 - [x] maybe use annotation processor to collect implementation classes.
-- [ ] exception handler for ksp generated implementation for better performance.
+- [x] exception handler for ksp generated implementation for better performance.
