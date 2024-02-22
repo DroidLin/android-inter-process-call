@@ -19,7 +19,6 @@ import kotlin.coroutines.Continuation
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
-import kotlin.reflect.jvm.isAccessible
 import kotlin.reflect.jvm.javaType
 
 /**
@@ -120,10 +119,9 @@ class ProcessInvocationHandle(
             ?: throw IllegalArgumentException("no Continuation parameter find in argument!!")
         val parameterTypeWithoutContinuation = method.parameterTypes.filter { it != Continuation::class.java }.toTypedArray()
         val parameterWithoutContinuation = args.filter { it !is Continuation<*> }.toTypedArray()
-        val continuationProxy = OneShotContinuation(continuation)
-        return this::suspendInvokeKotlinFunction
-            .apply { isAccessible = true }
-            .call(declaringJvmClass, method, parameterTypeWithoutContinuation, parameterWithoutContinuation, continuationProxy)
+        val oneShotContinuation = OneShotContinuation(continuation)
+        return (this::suspendInvokeKotlinFunction as? Function5<Class<*>, Method, Array<Class<*>>, Array<Any?>, Continuation<Any?>, Any>)
+            ?.invoke(declaringJvmClass, method, parameterTypeWithoutContinuation, parameterWithoutContinuation, oneShotContinuation)
     }
 
     private suspend fun suspendInvokeKotlinFunction(

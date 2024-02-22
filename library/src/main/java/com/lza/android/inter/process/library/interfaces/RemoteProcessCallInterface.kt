@@ -44,9 +44,7 @@ internal operator fun RemoteProcessCallInterface.plus(bridgeInterceptor: BridgeI
 }
 
 /**
- * 最基础的远端调用接口，非必要不扩展该接口和aidl的接口内容，可能会破坏跨进程调用的设计思想
- *
- * 后续扩展时，不建议直接构造该函数的对象，可参考[ProcessBasicInterface]的实现.
+ * basic remote call interface, don`t modify this interface properties or functions!!.
  */
 sealed interface RemoteProcessCallInterface {
 
@@ -54,20 +52,12 @@ sealed interface RemoteProcessCallInterface {
 
     operator fun invoke(request: Request): Response?
 
-    /**
-     * 注册远端断连回调, 如果当前已经断开连接会立刻回调
-     */
     fun linkToDeath(deathRecipient: DeathRecipient)
 
     fun unlinkToDeath(deathRecipient: DeathRecipient)
 
     fun interface DeathRecipient {
 
-        /**
-         * 远端断开连接时回调
-         *
-         * 通常发生在远端进程异常，导致进程被杀
-         */
         fun binderDead()
     }
 
@@ -78,9 +68,6 @@ sealed interface RemoteProcessCallInterface {
         }
     }
 
-    /**
-     * 调用端，持有远端的binder句柄，调用其中的方法会指向远端进程
-     */
     class Proxy(
         val binderInterface: ProcessCallFunction
     ) : RemoteProcessCallInterface {
@@ -136,9 +123,6 @@ sealed interface RemoteProcessCallInterface {
         }
     }
 
-    /**
-     * 远端调用的实现类，被调用端
-     */
     open class Stub : RemoteProcessCallInterface {
 
         private val bridgeInterceptorChain: MutableList<BridgeInterceptor<Request>> = LinkedList()
@@ -150,6 +134,9 @@ sealed interface RemoteProcessCallInterface {
             }
         }
 
+        /**
+         * local interface implementation is always alive.
+         */
         override val isStillAlive: Boolean get() = true
 
         fun add(bridgeInterceptor: BridgeInterceptor<out Request>) {

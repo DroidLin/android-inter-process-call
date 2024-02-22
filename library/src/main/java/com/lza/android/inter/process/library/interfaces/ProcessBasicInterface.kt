@@ -1,5 +1,6 @@
 package com.lza.android.inter.process.library.interfaces
 
+import android.os.Parcelable
 import com.lza.android.inter.process.library.ProcessCenter
 import com.lza.android.inter.process.library.ProcessImplementationCenter
 import com.lza.android.inter.process.library.bridge.interceptor.directRemoteProcessCallBridgeInterceptor
@@ -18,6 +19,7 @@ import com.lza.android.inter.process.library.bridge.parameter.Request
 import com.lza.android.inter.process.library.invokeSuspend
 import com.lza.android.inter.process.library.kotlin.OneShotContinuation
 import com.lza.android.inter.process.library.safeUnbox
+import java.io.Serializable
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
@@ -167,6 +169,7 @@ internal sealed interface ProcessBasicInterface {
             functionName: String,
             args: List<Any?>
         ): Any? {
+            this.checkArguments(args)
             return this.invokeRemoteNonSuspendFunction {
                 DirectInvocationRequest(
                     interfaceClassName = declaringClassName,
@@ -181,6 +184,7 @@ internal sealed interface ProcessBasicInterface {
             functionName: String,
             args: List<Any?>
         ): Any? {
+            this.checkArguments(args)
             return suspendCoroutineUninterceptedOrReturn { continuation ->
                 this.invokeRemoteSuspendFunction(continuation) { suspendCallback ->
                     DirectSuspendInvocationRequest(
@@ -199,6 +203,7 @@ internal sealed interface ProcessBasicInterface {
             argTypes: Array<Class<*>>,
             args: Array<Any?>
         ): Any? {
+            this.checkArguments(args)
             return this.invokeRemoteNonSuspendFunction {
                 ReflectionInvocationRequest(
                     interfaceClassName = declaringClass.name,
@@ -216,6 +221,7 @@ internal sealed interface ProcessBasicInterface {
             argTypes: Array<Class<*>>,
             args: Array<Any?>
         ): Any? {
+            this.checkArguments(args)
             return suspendCoroutineUninterceptedOrReturn { continuation ->
                 this.invokeRemoteSuspendFunction(continuation) { suspendCallback ->
                     ReflectionSuspendInvocationRequest(
@@ -225,6 +231,22 @@ internal sealed interface ProcessBasicInterface {
                         interfaceParameters = args.toList(),
                         remoteProcessSuspendCallback = suspendCallback
                     )
+                }
+            }
+        }
+
+        private fun checkArguments(arguments: Any?) {
+            if (arguments is List<*>) {
+                arguments.forEach { argument ->
+                    if (argument !is Serializable && argument !is Parcelable) {
+                        throw IllegalArgumentException("unsupported argument: $argument")
+                    }
+                }
+            } else if (arguments is Array<*>) {
+                arguments.forEach { argument ->
+                    if (argument !is Serializable && argument !is Parcelable) {
+                        throw IllegalArgumentException("unsupported argument: $argument")
+                    }
                 }
             }
         }
